@@ -1,0 +1,13 @@
+
+- id: guild_quartermaster
+  name: Mara Vell
+  pronouns: she/her
+  role: ferrymen_quartermaster
+  regions: [sorque]
+  goals: ["keep the quay supplied", "trade truth for truth"]
+  likes: [ferrytoken, honest_rumor]
+  romance:
+    affinity_gate: 25
+    trust_gate: 15
+    chemistry_gate: 0
+    eligible: true

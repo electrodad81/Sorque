@@ -1,3 +1,8 @@
+---
+# Item definitions for Sorque.
+#
+# Each entry describes an object that can exist in the world. Items
+# referenced in ``locations.yaml`` must match the ids defined here.
 
 - id: wardens_wick
   name: Wardens' Wick

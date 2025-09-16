@@ -1,3 +1,10 @@
+---
+# Directed edges connecting locations in Sorque.
+#
+# Each entry declares a movement from one location to another via a
+# direction. The optional ``requires`` list can specify items or
+# flags needed to traverse that edge. These are not yet enforced in
+# the MVP.
 
 - from: lantern_post
   to: stilt_market

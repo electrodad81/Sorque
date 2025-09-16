@@ -1,0 +1,1 @@
+"""Adapter layer for Sorque containing pluggable clients (e.g. LLM)."""

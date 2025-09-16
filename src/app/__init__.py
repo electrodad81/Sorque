@@ -1,0 +1,1 @@
+"""Application package for the Sorque Streamlit front‑end."""

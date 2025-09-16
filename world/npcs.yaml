@@ -1,3 +1,9 @@
+---
+# NPC definitions for Sorque.
+#
+# Each entry describes a non‑player character that can appear in the
+# world. NPC ids referenced in ``locations.yaml`` must match the ids
+# defined here.
 
 - id: guild_quartermaster
   name: Mara Vell

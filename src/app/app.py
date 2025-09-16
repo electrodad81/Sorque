@@ -1,23 +1,42 @@
+"""
+Streamlit application entry point for Sorque.
 
-# --- Path shim so 'from src....' works when running 'streamlit run src/app/app.py'
+This module defines the layout of the user interface and ties
+together the world loader, state management and action routing. The
+UI consists of a status bar at the top, a transcript console on the
+left and a keypad on the right. Additional interactive buttons for
+NPCs and items appear below the compass when available.
+
+The overall layout and styling are preserved from the original
+skeleton. Only the addition of interaction buttons in the right panel
+changes the visual elements on the screen. New buttons are created
+dynamically based on the current location's items and NPCs.
+"""
+
+from base64 import b64encode
 import sys
+from html import escape
 from pathlib import Path
+import streamlit as st
+
+from typing import Dict, Any, List
+
+# Path shim so 'from src....' works when running 'streamlit run src/app/app.py'
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from base64 import b64encode
-import streamlit as st
-from html import escape
 from src.backend.world_loader import World
 from src.backend.state_manager import init_state, get_state
 from src.backend.action_router import handle_action
-from src.backend.content_service import describe_location, get_location_title
+from src.backend.content_service import describe_location  # type: ignore
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 
+
 @st.cache_resource
-def load_world():
+def load_world() -> World:
+    """Load the game world from YAML files on disk."""
     return World.from_files(
         BASE_DIR / "world" / "graph" / "locations.yaml",
         BASE_DIR / "world" / "graph" / "edges.yaml",
@@ -25,13 +44,12 @@ def load_world():
         BASE_DIR / "world" / "items.yaml",
     )
 
-# CSS injection for custom styles
-# --------------------------------------------------------------
 
-def inject_css():
+def inject_css() -> None:
+    """Inject custom CSS styles into the Streamlit app."""
     st.markdown(
         """
-<style>
+
 /* Hide sidebar + narrow, centered page */
 section[data-testid="stSidebar"] { display:none; }
 .main .block-container {
@@ -76,110 +94,154 @@ div.stButton > button{
 }
 div.stButton > button:hover{ background:#111 !important; }
 div.stButton > button:disabled{ color:#666 !important; border-color:#444 !important; }
-</style>
+
         """,
         unsafe_allow_html=True,
     )
 
-# Load and apply the Apple II font
-# --------------------------------------------------------------
 
-def use_apple2_font():
-    """Embed the Apple II font as a data URI and apply it across the UI."""
-    font_path = BASE_DIR / "assets" / "fonts" / "PrintChar21.ttf"  # <-- adjust if you pick a different file
-    with open(font_path, "rb") as f:
-        b64 = b64encode(f.read()).decode("utf-8")
-    st.markdown(f"""
-    <style>
-    @font-face {{
-      font-family: 'Apple2';
-      src: url(data:font/ttf;base64,{b64}) format('truetype');
-      font-weight: normal;
-      font-style: normal;
-      font-display: swap;
-    }}
+def use_apple2_font() -> None:
+    """Embed the Apple II font and apply it across the UI."""
+    font_path = BASE_DIR / "assets" / "fonts" / "PrintChar21.ttf"  # adjust if necessary
+    try:
+        with open(font_path, "rb") as f:
+            b64 = b64encode(f.read()).decode("utf-8")
+        st.markdown(
+            f"""
 
-    /* Use the font in our app (status bar, console text, keypad buttons) */
-    .sq-status,
-    .sq-left, .sq-left pre,
-    #sq-console-row + div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:last-child,
-    #sq-console-row + div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:last-child div.stButton > button {{
-      font-family: 'Apple2', Consolas, "Courier New", ui-monospace, monospace !important;
-      font-size: 16px;              /* try 16–18px for best pixel look */
-      letter-spacing: 0.02em;       /* tiny tweak for readability; set to 0 if you prefer */
-      -webkit-font-smoothing: none; /* keeps it chunky on WebKit */
-      -moz-osx-font-smoothing: grayscale;
-      text-rendering: optimizeSpeed;
-    }}
-    </style>
-    """, unsafe_allow_html=True)
+@font-face {{
+  font-family: 'Apple2';
+  src: url(data:font/ttf;base64,{b64}) format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}}
 
-# Game UI rendering
-# --------------------------------------------------------------
+/* Use the font in our app (status bar, console text, keypad buttons) */
+.sq-status,
+.sq-left, .sq-left pre,
+#sq-console-row + div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:last-child,
+#sq-console-row + div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:last-child div.stButton > button {{
+  font-family: 'Apple2', Consolas, "Courier New", ui-monospace, monospace !important;
+  font-size: 16px;
+  letter-spacing: 0.02em;
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeSpeed;
+}}
 
-def render_status_bar(world, state):
-    location_name = get_location_title(world, state["location_id"])
+    """,
+            unsafe_allow_html=True,
+        )
+    except FileNotFoundError:
+        # In case the font file is missing, silently continue using default fonts
+        pass
+
+
+def render_status_bar(world: World, state: Dict[str, Any]) -> None:
+    """Render the top status bar showing the location title and other info."""
+    location_name = world.title(state["location_id"])
     moves = st.session_state.get("moves", 0)
     st.markdown(
         f"""
-<div class="sq-status">
-  <div class="row">
-    <div class="left">{escape(location_name)}</div>
-    <div class="center">Sorque</div>
-    <div class="right">Moves: {moves}</div>
-  </div>
-</div>
-        """, unsafe_allow_html=True)
 
-def seed_transcript(world, state):
+
+{escape(location_name)} 
+Sorque 
+Moves: {moves} 
+
+
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def seed_transcript(world: World, state: Dict[str, Any]) -> None:
+    """Populate the transcript on first render."""
     if not st.session_state.get("log"):
-        loc_title = get_location_title(world, state["location_id"])
+        loc_title = world.title(state["location_id"])
         desc = describe_location(world, state["location_id"], state)
         st.session_state.last_description = desc
         st.session_state.log = [loc_title, desc, ""]
 
-def render_console(world, state):
-    # Anchor so CSS can reliably target this specific columns row
-    st.markdown('<div id="kp-anchor"></div>', unsafe_allow_html=True)
 
+def render_console(world: World, state: Dict[str, Any]) -> None:
+    """Render the main console consisting of transcript and keypad."""
+    # Anchor so CSS can reliably target this specific columns row
+    st.markdown(' ', unsafe_allow_html=True, key="sq-console-row")
     # Two columns: left (text) and right (buttons only)
     left_col, right_col = st.columns([2.8, 1.0], gap="small")
-
     # LEFT: transcript
     with left_col:
         seed_transcript(world, state)
         text = "\n".join(st.session_state.get("log", []))
-        st.markdown(f'<div class="sq-left"><pre>{escape(text)}</pre></div>', unsafe_allow_html=True)
-
-    # RIGHT: keypad (all inside this column)
+        st.markdown(f' {escape(text)} ', unsafe_allow_html=True)
+    # RIGHT: keypad and interactions
     with right_col:
         exits = world.locations[state["location_id"]].exits
-        def mv(dir_key: str): handle_action(world, state, {"type": "move", "dir": dir_key})
+        # Movement callback
+        def mv(dir_key: str) -> None:
+            handle_action(world, state, {"type": "move", "dir": dir_key})
+        # Compass
+        c1a, c1b, c1c = st.columns([1, 1, 1])  # N
+        with c1b:
+            st.button("Go North", key="pad_N", disabled=("north" not in exits), on_click=mv, kwargs={"dir_key": "north"})
+        c2a, c2b, c2c = st.columns(3)  # W L E
+        with c2a:
+            st.button("Go West", key="pad_W", disabled=("west" not in exits), on_click=mv, kwargs={"dir_key": "west"})
+        with c2b:
+            st.button("Look", key="pad_L", on_click=lambda: handle_action(world, state, {"type": "look"}))
+        with c2c:
+            st.button("Go East", key="pad_E", disabled=("east" not in exits), on_click=mv, kwargs={"dir_key": "east"})
+        c3a, c3b, c3c = st.columns([1, 1, 1])  # S
+        with c3b:
+            st.button("Go South", key="pad_S", disabled=("south" not in exits), on_click=mv, kwargs={"dir_key": "south"})
+        # Auxiliary buttons
+        c4a, c4b, c4c, c4d = st.columns(4)  # m j inv ✱
+        with c4a:
+            st.button("Map", key="pad_m", help="Map", on_click=lambda: st.session_state.__setitem__("active_panel", "map"))
+        with c4b:
+            st.button("Journal", key="pad_j", help="Journal", on_click=lambda: st.session_state.__setitem__("active_panel", "journal"))
+        with c4c:
+            st.button("Inventory", key="pad_inv", help="Inventory", on_click=lambda: handle_action(world, state, {"type": "inventory"}))
+        with c4d:
+            st.button("Settings", key="pad_settings", help="Settings", on_click=lambda: st.session_state.__setitem__("active_panel", "settings"))
+        # Interaction buttons: NPCs and items
+        loc = world.locations[state["location_id"]]
+        # NPC interactions
+        for npc_id in loc.npcs:
+            npc_def = world.get_npc(npc_id)
+            label = npc_def.get("name", npc_id) if npc_def else npc_id
+            st.button(
+                f"Talk to {label}",
+                key=f"npc_{npc_id}",
+                on_click=lambda npc_id=npc_id: handle_action(world, state, {"type": "talk", "npc_id": npc_id}),
+            )
+        # Item interactions – show only non‑hidden items
+        for itm in loc.items:
+            # skip hidden items
+            if isinstance(itm, dict) and itm.get("hidden"):
+                continue
+            iid = itm.get("id") if isinstance(itm, dict) else itm
+            item_def = world.get_item(iid)
+            name = item_def.get("name", iid) if item_def else iid
+            # Provide both inspect and take actions; for now we only implement 'take'
+            st.button(
+                f"Take {name}",
+                key=f"take_{iid}",
+                on_click=lambda iid=iid: handle_action(world, state, {"type": "take", "item_id": iid}),
+            )
 
-        c1a, c1b, c1c = st.columns([1,1,1]);  # N
-        with c1b: st.button("Go North", key="pad_N", disabled=("north" not in exits), on_click=mv, kwargs={"dir_key":"north"})
 
-        c2a, c2b, c2c = st.columns(3)         # W L E
-        with c2a: st.button("Go West", key="pad_W", disabled=("west" not in exits), on_click=mv, kwargs={"dir_key":"west"})
-        with c2b: st.button("Look", key="pad_L", on_click=lambda: handle_action(world, state, {"type":"look"}))
-        with c2c: st.button("Go East", key="pad_E", disabled=("east" not in exits), on_click=mv, kwargs={"dir_key":"east"})
-
-        c3a, c3b, c3c = st.columns([1,1,1])   # S
-        with c3b: st.button("Go South", key="pad_S", disabled=("south" not in exits), on_click=mv, kwargs={"dir_key":"south"})
-
-        c4a, c4b, c4c, c4d = st.columns(4)    # m j inv ✱
-        with c4a: st.button("Map", key="pad_m", help="Map", on_click=lambda: st.session_state.__setitem__("active_panel","map"))
-        with c4b: st.button("Journal", key="pad_j", help="Journal", on_click=lambda: st.session_state.__setitem__("active_panel","journal"))
-        with c4c: st.button("Inventory", key="pad_inv", help="Inventory", on_click=lambda: handle_action(world, state, {"type":"inventory"}))
-        with c4d: st.button("Settings", key="pad_settings", help="Settings", on_click=lambda: st.session_state.__setitem__("active_panel","settings"))
-
-def render_panels(world, state):
+def render_panels(world: World, state: Dict[str, Any]) -> None:
+    """Render side panels such as map, journal and settings."""
     panel = st.session_state.get("active_panel")
     if not panel:
         return
     st.markdown("---")
     if panel == "map":
-        rows = []
+        # Show adjacency list of exits
+        rows: List[str] = []
         for loc in world.locations.values():
             for d, to in (loc.exits or {}).items():
                 rows.append(f"{loc.id:<18} {d:>5} → {to}")
@@ -195,22 +257,22 @@ def render_panels(world, state):
         st.markdown("**Settings**")
         st.checkbox("Typewriter effect (placeholder)", value=False, key="typewriter")
         st.checkbox("PG-13 content filter (always on in MVP)", value=True, disabled=True, key="pg13")
+    # Close panel button
     st.button("Close panel", on_click=lambda: st.session_state.__setitem__("active_panel", None))
 
-# --------------------------------------------------------------
-# Main app
-# --------------------------------------------------------------
 
-def main():
+def main() -> None:
+    """Main entry point for the Streamlit app."""
     st.set_page_config(page_title="Sorque", page_icon="🕯️", layout="wide", initial_sidebar_state="collapsed")
-    inject_css()                    # apply custom CSS
-    use_apple2_font()               # apply the Apple II font
-    world = load_world()            # load the game world
-    init_state(world)               # initialize session state
-    state = get_state()             # get the current game state
-    render_status_bar(world, state) # render the status bar
-    render_console(world, state)    # render the main console (transcript + keypad)
-    render_panels(world, state)     # render any active panels (map, journal, settings)
+    inject_css()
+    use_apple2_font()
+    world = load_world()
+    init_state(world)
+    state = get_state()
+    render_status_bar(world, state)
+    render_console(world, state)
+    render_panels(world, state)
+
 
 if __name__ == "__main__":
     main()

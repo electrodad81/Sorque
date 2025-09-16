@@ -1,3 +1,9 @@
+---
+# Authored locations for Sorque.
+#
+# Each entry defines a node in the world graph. Exits list other
+# location ids keyed by direction. Items are a list of objects
+# available at this location. NPCs list ids of characters present.
 
 - id: lantern_post
   title: Lantern Post

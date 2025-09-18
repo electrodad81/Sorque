@@ -138,15 +138,15 @@ def render_status_bar(world: World, state: Dict[str, Any]) -> None:
     location_name = world.title(state["location_id"])
     moves = st.session_state.get("moves", 0)
     st.markdown(
-        f"""
-
-
-{escape(location_name)} 
-Sorque 
-Moves: {moves} 
-
-
-        """,
+        f'''
+        <div class="sq-status">
+        <div class="row">
+            <div class="left">{escape(location_name)}</div>
+            <div class="center">Sorque</div>
+            <div class="right">Moves: {moves}</div>
+        </div>
+        </div>
+        ''',
         unsafe_allow_html=True,
     )
 

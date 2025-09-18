@@ -47,9 +47,10 @@ def load_world() -> World:
 
 def inject_css() -> None:
     """Inject custom CSS styles into the Streamlit app."""
-    st.markdown(
-        """
-
+    # Compose the CSS and wrap it in a <style> tag so Streamlit does not
+    # render the content verbatim. Without the wrapper, CSS may be
+    # displayed as plain text in the app.
+    css = """
 /* Hide sidebar + narrow, centered page */
 section[data-testid="stSidebar"] { display:none; }
 .main .block-container {
@@ -81,7 +82,7 @@ div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
 .sq-left pre{ margin:0; white-space:pre-wrap; }
 
 /* RIGHT: no background box, just buttons sitting on the page */
-#kp-anchor + div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:last-child {
+#sq-console-row + div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:last-child {
   padding:0 8px 0 16px !important;
 }
 /* Square, modern buttons: black bg, white outline, white text */
@@ -94,10 +95,8 @@ div.stButton > button{
 }
 div.stButton > button:hover{ background:#111 !important; }
 div.stButton > button:disabled{ color:#666 !important; border-color:#444 !important; }
-
-        """,
-        unsafe_allow_html=True,
-    )
+"""
+    st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
 
 
 def use_apple2_font() -> None:
@@ -106,9 +105,7 @@ def use_apple2_font() -> None:
     try:
         with open(font_path, "rb") as f:
             b64 = b64encode(f.read()).decode("utf-8")
-        st.markdown(
-            f"""
-
+        font_css = f"""
 @font-face {{
   font-family: 'Apple2';
   src: url(data:font/ttf;base64,{b64}) format('truetype');
@@ -129,10 +126,8 @@ def use_apple2_font() -> None:
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeSpeed;
 }}
-
-    """,
-            unsafe_allow_html=True,
-        )
+"""
+        st.markdown(f"<style>{font_css}</style>", unsafe_allow_html=True)
     except FileNotFoundError:
         # In case the font file is missing, silently continue using default fonts
         pass
@@ -168,14 +163,17 @@ def seed_transcript(world: World, state: Dict[str, Any]) -> None:
 def render_console(world: World, state: Dict[str, Any]) -> None:
     """Render the main console consisting of transcript and keypad."""
     # Anchor so CSS can reliably target this specific columns row
-    st.markdown(' ', unsafe_allow_html=True, key="sq-console-row")
+    st.markdown('<div id="sq-console-row"></div>', unsafe_allow_html=True)
     # Two columns: left (text) and right (buttons only)
     left_col, right_col = st.columns([2.8, 1.0], gap="small")
     # LEFT: transcript
     with left_col:
         seed_transcript(world, state)
         text = "\n".join(st.session_state.get("log", []))
-        st.markdown(f' {escape(text)} ', unsafe_allow_html=True)
+        st.markdown(
+            f'<div class="sq-left"><pre>{escape(text)}</pre></div>',
+            unsafe_allow_html=True
+        )
     # RIGHT: keypad and interactions
     with right_col:
         exits = world.locations[state["location_id"]].exits

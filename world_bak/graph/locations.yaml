@@ -1,0 +1,56 @@
+---
+# Authored locations for Sorque.
+#
+# Each entry defines a node in the world graph. Exits list other
+# location ids keyed by direction. Items are a list of objects
+# available at this location. NPCs list ids of characters present.
+
+- id: lantern_post
+  title: Lantern Post
+  tags: [outdoor, waymarker]
+  exits: { east: stilt_market, south: reed_maze }
+  items:
+    - id: wardens_wick
+      hidden: false
+  npcs: []
+  lore_refs: [wardens_lanterns]
+
+- id: stilt_market
+  title: Stilt-Market of Brael
+  tags: [hub, trade]
+  exits: { west: lantern_post, south: smugglers_cut }
+  items: []
+  npcs: [guild_quartermaster]
+  lore_refs: [ferrymens_law]
+
+- id: reed_maze
+  title: Reed Maze
+  tags: [hazard]
+  exits: { north: lantern_post, south: drowned_beacon }
+  items: []
+  npcs: []
+  lore_refs: []
+
+- id: drowned_beacon
+  title: Drowned Beacon
+  tags: [quest_site]
+  exits: { north: reed_maze, east: cairn_rise }
+  items: []
+  npcs: []
+  lore_refs: []
+
+- id: cairn_rise
+  title: Cairn Rise
+  tags: [lore_site]
+  exits: { west: drowned_beacon, north: stilt_market }
+  items: []
+  npcs: []
+  lore_refs: []
+
+- id: smugglers_cut
+  title: Smugglers' Cut
+  tags: [secret_pass]
+  exits: { north: stilt_market, east: cairn_rise }
+  items: []
+  npcs: []
+  lore_refs: []

@@ -46,6 +46,39 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+st.markdown(
+    """
+    <style>
+      /* Make ALL secondary buttons equal size & fill their column */
+      .stButton > button[kind="secondary"]{
+        width: 100% !important;             /* span the st.columns cell */
+        height: 60px !important;            /* fixed height (tweak if you like) */
+        white-space: normal !important;     /* allow wrapping for long labels */
+        text-align: center !important;
+        display: flex !important;
+        align-items: center !important;     /* vertical center */
+        justify-content: center !important; /* horizontal center */
+        line-height: 1.15 !important;
+        border-radius: 8px !important;
+      }
+      /* Keep the Look button as a blue outline (primary) — already added earlier */
+      .stButton > button[kind="primary"]{
+        background: transparent !important;
+        color: #1a73e8 !important;
+        border: 2px solid #1a73e8 !important;
+        box-shadow: none !important;
+      }
+      .stButton > button[kind="primary"]:hover{
+        background: rgba(26,115,232,0.08) !important;
+      }
+      .stButton > button[kind="primary"]:active{
+        background: rgba(26,115,232,0.16) !important;
+      }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 # ---------- tiny panel helpers ----------
 def panel_init(room_id: str, short_text: str):
     """Ensure per-room panel exists; on room change, seed with short description as body."""

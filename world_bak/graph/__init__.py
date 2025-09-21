@@ -1,1 +1,0 @@
-"""Graph definitions for Sorque's world map."""

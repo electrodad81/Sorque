@@ -1,1 +1,0 @@
-Resolve the player's action concisely and return a small machine-readable delta as JSON.

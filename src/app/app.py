@@ -1,276 +1,189 @@
-"""
-Streamlit application entry point for Sorque.
-
-This module defines the layout of the user interface and ties
-together the world loader, state management and action routing. The
-UI consists of a status bar at the top, a transcript console on the
-left and a keypad on the right. Additional interactive buttons for
-NPCs and items appear below the compass when available.
-
-The overall layout and styling are preserved from the original
-skeleton. Only the addition of interaction buttons in the right panel
-changes the visual elements on the screen. New buttons are created
-dynamically based on the current location's items and NPCs.
-"""
-
-from base64 import b64encode
+# --- path bootstrap so "backend" is importable when running src/app/app.py ---
 import sys
-from html import escape
 from pathlib import Path
+from typing import Optional
 import streamlit as st
 
-from typing import Dict, Any, List
+THIS_FILE = Path(__file__).resolve()
+SRC_DIR   = THIS_FILE.parents[1]      # .../src
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))  # make 'backend' a top-level package
 
-# Path shim so 'from src....' works when running 'streamlit run src/app/app.py'
-ROOT = Path(__file__).resolve().parents[2]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+# now import the OO engine
+from backend.oo_loader import new_game_from_path
+from backend.oo import Game
 
-from src.backend.world_loader import World
-from src.backend.state_manager import init_state, get_state
-from src.backend.action_router import handle_action
-from src.backend.content_service import describe_location  # type: ignore
+from app.ui_components import DescriptionPanel, PanelMessage, InventoryPanel
 
-BASE_DIR = Path(__file__).resolve().parents[2]
+st.markdown(
+    """
+    <style>
+      /* make primary buttons just a bit taller for prominence */
+      .stButton > button[kind="primary"] { padding: 0.6rem 1rem; }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
+st.markdown(
+    """
+    <style>
+      /* Make ONLY primary buttons (we use it for Look) a blue outline */
+      .stButton > button[kind="primary"]{
+        background: transparent !important;
+        color: #1a73e8 !important;                 /* Google-ish blue */
+        border: 2px solid #1a73e8 !important;
+        box-shadow: none !important;
+      }
+      .stButton > button[kind="primary"]:hover{
+        background: rgba(26,115,232,0.08) !important;
+      }
+      .stButton > button[kind="primary"]:active{
+        background: rgba(26,115,232,0.16) !important;
+      }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
-@st.cache_resource
-def load_world() -> World:
-    """Load the game world from YAML files on disk."""
-    return World.from_files(
-        BASE_DIR / "world" / "graph" / "locations.yaml",
-        BASE_DIR / "world" / "graph" / "edges.yaml",
-        BASE_DIR / "world" / "npcs.yaml",
-        BASE_DIR / "world" / "items.yaml",
-    )
+# ---------- tiny panel helpers ----------
+def panel_init(room_id: str, short_text: str):
+    """Ensure per-room panel exists; on room change, seed with short description as body."""
+    blocks = st.session_state.get("panel", {}).get("blocks")
+    if ("panel" not in st.session_state) or (st.session_state.panel.get("room_id") != room_id):
+        st.session_state.panel = {"room_id": room_id, "blocks": [PanelMessage(short_text, "body")]}
+    elif not blocks:
+        st.session_state.panel["blocks"] = [PanelMessage(short_text, "body")]
 
+def panel_set_body(html: str):
+    st.session_state.panel["blocks"] = [PanelMessage(html, "body")]
 
-def inject_css() -> None:
-    """Inject custom CSS styles into the Streamlit app."""
-    # Compose the CSS and wrap it in a <style> tag so Streamlit does not
-    # render the content verbatim. Without the wrapper, CSS may be
-    # displayed as plain text in the app.
-    css = """
-/* Hide sidebar + narrow, centered page */
-section[data-testid="stSidebar"] { display:none; }
-.main .block-container {
-  max-width: 840px; width: 90vw; margin: 8px auto 0 auto;
-}
-
-/* Status bar */
-.sq-status{
-  background:#c0c0c0; color:#000; padding:6px 10px; border-radius:0; margin-bottom:8px;
-  font-family: Consolas, "Courier New", ui-monospace, monospace; font-size:15px;
-  border:1px solid #888;
-}
-.sq-status .row { display:flex; align-items:center; justify-content:space-between; }
-.sq-status .left,.sq-status .center{ font-weight:700; }
-
-/* Two columns, no gutters */
-div[data-testid="stHorizontalBlock"] { gap:0 !important; }
-div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
-  padding-left:0 !important; padding-right:0 !important;
-}
-
-/* LEFT: transcript — keep the vertical white separator on the right edge */
-.sq-left{
-  background:#000; color:#d7d7d7; line-height:1.35;
-  font-family: Consolas, "Courier New", ui-monospace, monospace;
-  height:480px; overflow-y:auto; padding:6px 8px;
-  border:2px solid #fff; border-right:2px solid #fff;   /* separator */
-}
-.sq-left pre{ margin:0; white-space:pre-wrap; }
-
-/* RIGHT: no background box, just buttons sitting on the page */
-#sq-console-row + div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:last-child {
-  padding:0 8px 0 16px !important;
-}
-/* Square, modern buttons: black bg, white outline, white text */
-div.stButton > button{
-  width:100%;
-  background:#000 !important; color:#fff !important;
-  border:2px solid #fff !important; border-radius:0 !important;
-  box-shadow:none !important; padding:8px 0 !important;
-  font-weight:600; letter-spacing:0.5px;
-}
-div.stButton > button:hover{ background:#111 !important; }
-div.stButton > button:disabled{ color:#666 !important; border-color:#444 !important; }
-"""
-    st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
+def panel_append(html: str, kind: str = "info"):
+    st.session_state.panel["blocks"].append(PanelMessage(html, kind))  # type: ignore[arg-type]
 
 
-def use_apple2_font() -> None:
-    """Embed the Apple II font and apply it across the UI."""
-    font_path = BASE_DIR / "assets" / "fonts" / "PrintChar21.ttf"  # adjust if necessary
+ROOT_DIR  = THIS_FILE.parents[2]   # project root (…/Sorque/)
+WORLD_PATH = ROOT_DIR / "data" / "worlds" / "house_start.json"
+
+# ---------- session/bootstrap ----------
+if "ui_tick" not in st.session_state:
+    st.session_state.ui_tick = 0
+# old CSS key cleanup (safe no-op if absent)
+st.session_state.pop("_ui_desc_panel_css_loaded", None)
+
+G: Optional[Game] = st.session_state.get("game")
+if G is None:
     try:
-        with open(font_path, "rb") as f:
-            b64 = b64encode(f.read()).decode("utf-8")
-        font_css = f"""
-@font-face {{
-  font-family: 'Apple2';
-  src: url(data:font/ttf;base64,{b64}) format('truetype');
-  font-weight: normal;
-  font-style: normal;
-  font-display: swap;
-}}
+        st.session_state.game = new_game_from_path(str(WORLD_PATH))
+        G = st.session_state.game
+    except Exception as e:
+        st.error(f"Failed to load world: {e}")
+        st.stop()
 
-/* Use the font in our app (status bar, console text, keypad buttons) */
-.sq-status,
-.sq-left, .sq-left pre,
-#sq-console-row + div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:last-child,
-#sq-console-row + div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:last-child div.stButton > button {{
-  font-family: 'Apple2', Consolas, "Courier New", ui-monospace, monospace !important;
-  font-size: 16px;
-  letter-spacing: 0.02em;
-  -webkit-font-smoothing: none;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeSpeed;
-}}
-"""
-        st.markdown(f"<style>{font_css}</style>", unsafe_allow_html=True)
-    except FileNotFoundError:
-        # In case the font file is missing, silently continue using default fonts
-        pass
+# Panel seed + death handling (death first)
+death_msg = st.session_state.pop("death_msg", None)
+if death_msg:
+    st.session_state.panel = {
+        "room_id": G.current_room_id,
+        "blocks": [
+            PanelMessage(death_msg, "error"),
+            PanelMessage(G.desc_short(), "body"),
+        ],
+    }
+else:
+    panel_init(G.current_room_id, G.desc_short())
 
+# Inventory toggle state
+if "inv_open" not in st.session_state:
+    st.session_state.inv_open = True  # start open
 
-def render_status_bar(world: World, state: Dict[str, Any]) -> None:
-    """Render the top status bar showing the location title and other info."""
-    location_name = world.title(state["location_id"])
-    moves = st.session_state.get("moves", 0)
-    st.markdown(
-        f'''
-        <div class="sq-status">
-        <div class="row">
-            <div class="left">{escape(location_name)}</div>
-            <div class="center">Sorque</div>
-            <div class="right">Moves: {moves}</div>
-        </div>
-        </div>
-        ''',
-        unsafe_allow_html=True,
-    )
+# =========================
+# TWO-COLUMN LAYOUT
+# =========================
+left, right = st.columns([3, 1])
 
+# ----- LEFT: header + fixed text window + controls -----
+with left:
+    # Header ABOVE the window
+    if G.room.name:
+        st.subheader(G.room.name)
 
-def seed_transcript(world: World, state: Dict[str, Any]) -> None:
-    """Populate the transcript on first render."""
-    if not st.session_state.get("log"):
-        loc_title = world.title(state["location_id"])
-        desc = describe_location(world, state["location_id"], state)
-        st.session_state.last_description = desc
-        st.session_state.log = [loc_title, desc, ""]
+    # Fixed, scrollable text window
+    DescriptionPanel(panel_id="room-desc", height_px=220, border_css="1px solid #000") \
+        .render(st.session_state.panel["blocks"])
 
+    # ---------- Look ----------
+    if st.button("Look", type="primary", key=f"look_{st.session_state.ui_tick}"):
+        G.look()  # sets reveal flags
+        st.session_state.ui_tick += 1
+        # Replace body with current LONG description
+        st.session_state.panel["blocks"] = [PanelMessage(G.desc_long(), "body")]
+        st.rerun()
 
-def render_console(world: World, state: Dict[str, Any]) -> None:
-    """Render the main console consisting of transcript and keypad."""
-    # Anchor so CSS can reliably target this specific columns row
-    st.markdown('<div id="sq-console-row"></div>', unsafe_allow_html=True)
-    # Two columns: left (text) and right (buttons only)
-    left_col, right_col = st.columns([2.8, 1.0], gap="small")
-    # LEFT: transcript
-    with left_col:
-        seed_transcript(world, state)
-        text = "\n".join(st.session_state.get("log", []))
-        st.markdown(
-            f'<div class="sq-left"><pre>{escape(text)}</pre></div>',
-            unsafe_allow_html=True
-        )
-    # RIGHT: keypad and interactions
-    with right_col:
-        exits = world.locations[state["location_id"]].exits
-        # Movement callback
-        def mv(dir_key: str) -> None:
-            handle_action(world, state, {"type": "move", "dir": dir_key})
-        # Compass
-        c1a, c1b, c1c = st.columns([1, 1, 1])  # N
-        with c1b:
-            st.button("Go North", key="pad_N", disabled=("north" not in exits), on_click=mv, kwargs={"dir_key": "north"})
-        c2a, c2b, c2c = st.columns(3)  # W L E
-        with c2a:
-            st.button("Go West", key="pad_W", disabled=("west" not in exits), on_click=mv, kwargs={"dir_key": "west"})
-        with c2b:
-            st.button("Look", key="pad_L", on_click=lambda: handle_action(world, state, {"type": "look"}))
-        with c2c:
-            st.button("Go East", key="pad_E", disabled=("east" not in exits), on_click=mv, kwargs={"dir_key": "east"})
-        c3a, c3b, c3c = st.columns([1, 1, 1])  # S
-        with c3b:
-            st.button("Go South", key="pad_S", disabled=("south" not in exits), on_click=mv, kwargs={"dir_key": "south"})
-        # Auxiliary buttons
-        c4a, c4b, c4c, c4d = st.columns(4)  # m j inv ✱
-        with c4a:
-            st.button("Map", key="pad_m", help="Map", on_click=lambda: st.session_state.__setitem__("active_panel", "map"))
-        with c4b:
-            st.button("Journal", key="pad_j", help="Journal", on_click=lambda: st.session_state.__setitem__("active_panel", "journal"))
-        with c4c:
-            st.button("Inventory", key="pad_inv", help="Inventory", on_click=lambda: handle_action(world, state, {"type": "inventory"}))
-        with c4d:
-            st.button("Settings", key="pad_settings", help="Settings", on_click=lambda: st.session_state.__setitem__("active_panel", "settings"))
-        # Interaction buttons: NPCs and items
-        loc = world.locations[state["location_id"]]
-        # NPC interactions
-        for npc_id in loc.npcs:
-            npc_def = world.get_npc(npc_id)
-            label = npc_def.get("name", npc_id) if npc_def else npc_id
-            st.button(
-                f"Talk to {label}",
-                key=f"npc_{npc_id}",
-                on_click=lambda npc_id=npc_id: handle_action(world, state, {"type": "talk", "npc_id": npc_id}),
-            )
-        # Item interactions – show only non‑hidden items
-        for itm in loc.items:
-            # skip hidden items
-            if isinstance(itm, dict) and itm.get("hidden"):
-                continue
-            iid = itm.get("id") if isinstance(itm, dict) else itm
-            item_def = world.get_item(iid)
-            name = item_def.get("name", iid) if item_def else iid
-            # Provide both inspect and take actions; for now we only implement 'take'
-            st.button(
-                f"Take {name}",
-                key=f"take_{iid}",
-                on_click=lambda iid=iid: handle_action(world, state, {"type": "take", "item_id": iid}),
-            )
+    # ---------- Compass (movement) ----------
+    cols = st.columns(4)
+    for i, ex in enumerate(G.compass()):
+        col = cols[i % 4]
+        to_valid = bool(ex["to"]) and str(ex["to"]) in G.rooms
+        disabled = not to_valid
 
+        if col.button(ex["label"], disabled=disabled, key=f"mv_{ex['direction']}_{st.session_state.ui_tick}"):
+            st.session_state.ui_tick += 1
 
-def render_panels(world: World, state: Dict[str, Any]) -> None:
-    """Render side panels such as map, journal and settings."""
-    panel = st.session_state.get("active_panel")
-    if not panel:
-        return
-    st.markdown("---")
-    if panel == "map":
-        # Show adjacency list of exits
-        rows: List[str] = []
-        for loc in world.locations.values():
-            for d, to in (loc.exits or {}).items():
-                rows.append(f"{loc.id:<18} {d:>5} → {to}")
-        content = "\n".join(rows) or "(no exits)"
-        st.markdown("**Map (adjacency)** — press the button again to close")
-        st.code(content)
-    elif panel == "journal":
-        log = st.session_state.get("log", [])
-        tail = "\n".join(log[-40:]) if log else "(empty)"
-        st.markdown("**Journal (recent transcript)**")
-        st.code(tail)
-    elif panel == "settings":
-        st.markdown("**Settings**")
-        st.checkbox("Typewriter effect (placeholder)", value=False, key="typewriter")
-        st.checkbox("PG-13 content filter (always on in MVP)", value=True, disabled=True, key="pg13")
-    # Close panel button
-    st.button("Close panel", on_click=lambda: st.session_state.__setitem__("active_panel", None))
+            if not to_valid:
+                st.session_state.panel["blocks"].append(PanelMessage("It doesn't seem to open.", "warning"))
+                st.rerun()
 
+            if ex["locked"]:
+                locked_line = ex["locked_text"] or "It's stuck. You'll need leverage."
+                st.session_state.panel["blocks"].append(PanelMessage(locked_line, "warning"))
+                st.rerun()
 
-def main() -> None:
-    """Main entry point for the Streamlit app."""
-    st.set_page_config(page_title="Sorque", page_icon="🕯️", layout="wide", initial_sidebar_state="collapsed")
-    inject_css()
-    use_apple2_font()
-    world = load_world()
-    init_state(world)
-    state = get_state()
-    render_status_bar(world, state)
-    render_console(world, state)
-    render_panels(world, state)
+            # Move succeeds -> seed next room with SHORT description as panel body
+            G.move(ex["direction"])
+            panel_init(G.current_room_id, G.desc_short())
+            st.rerun()
 
+    # ---------- Interactions ----------
+    vis = G.visible_interactions()
+    if vis:
+        st.markdown("### Actions")
+    for it in vis:
+        if st.button(it.label, key=f"act_{it.id}_{st.session_state.ui_tick}"):
+            before = set(G.inventory)
+            msg, dead = G.do(it.id)
+            after = set(G.inventory)
+            st.session_state.ui_tick += 1
 
-if __name__ == "__main__":
-    main()
+            if dead:
+                st.session_state.death_msg = msg or "You died."
+                G.restart()
+                st.rerun()
+
+            # Body: up-to-date LONG description (reflect overrides)
+            st.session_state.panel["blocks"] = [PanelMessage(G.desc_long(), "body")]
+
+            # Append interaction text
+            if msg:
+                st.session_state.panel["blocks"].append(PanelMessage(msg, "info"))
+
+            # Append pickups
+            for name in sorted(after - before):
+                st.session_state.panel["blocks"].append(PanelMessage(f"**{name.title()} added to inventory.**", "success"))
+
+            st.rerun()
+
+# ----- RIGHT: collapsible Inventory -----
+with right:
+    st.checkbox("Inventory", key="inv_open")
+    if st.session_state.inv_open:
+        InventoryPanel(panel_id="inv", height_px=220, border_css="1px solid #000") \
+            .render(sorted(G.inventory))
+
+# (Optional) debug
+with st.expander("Debug state"):
+    st.write({
+        "room": G.current_room_id,
+        "inventory": sorted(G.inventory),
+        "flags": sorted(G.flags),
+    })

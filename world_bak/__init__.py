@@ -1,1 +1,0 @@
-"""Authored world data for Sorque."""

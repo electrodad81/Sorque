@@ -29,13 +29,23 @@
     "1": {
       "id": 1,
       "name": "Living Room",
-      "desc_short": "A cramped living room with scuffed floors and a rattling vent.",
+      "desc_short": "A cramped living room with scuffed floors and a rattling vent. A folded note lies on the coffee table.",
       "desc_long": "A sagging couch faces a dead TV. Dust motes drift in a pale beam from the window. Doorways lead to the basement and the backyard. A narrow front door stands to the north—its latch looks swollen and stuck.",
       "desc_overrides": [
         {
-          "visible_if_items": ["hatchet"],
-          "short": "A cramped living room with scuffed floors and a rattling vent.",
-          "long": "A sagging couch faces a dead TV. Dust motes drift in a pale beam from the window. Doorways lead to the basement and the backyard. With the hatchet in hand, the swollen front-door latch looks manageable."
+          "visible_if_flags": ["read_note"],
+          "short": "A cramped living room with scuffed floors and a rattling vent."
+        }
+      ],
+      "interactions": [
+        {
+          "id": "read_note",
+          "label": "Read the note on the table",
+          "visible_if_not_flags": ["read_note"],
+          "once": true,
+          "sort": -10,
+          "effects": [{ "add_flag": "read_note" }],
+          "text": "The note reads:\n\n**Welcome to Sorque**\n- Click **Look** to reveal more detail in a room.\n- Use the **action buttons** to move.\n- **Actions** appear contextually under the room panel.\n- Blocked exits may need items to proceed.\n- In the basement, **Beware of Dog**.\n- Step **outside** to escape.\n\nGood luck."
         }
       ],
       "exits": {

@@ -33,3 +33,5 @@ data/cache/
 
 # workshop directory
 uiworkshop/
+.streamlit/secrets.toml
+assets/other/ZORK I_ The Great Underground Empire.pdf

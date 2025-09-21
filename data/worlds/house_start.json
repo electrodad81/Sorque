@@ -54,6 +54,7 @@
       "name": "Basement",
       "desc_short": "A cool, dim basement that smells of damp concrete; from the shadows, a faint panting.",
       "desc_long": "Narrow stairs creak behind you. Pipes tick in the ceiling. A dog watches you from the shadows, tail motionless.",
+      "on_look_add_flags": ["saw_dog"],         
       "exits": { "north": { "to": "1", "label": "up to the living room" } },
       "interactions": [
         {

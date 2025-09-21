@@ -15,6 +15,13 @@ from backend.oo import Game
 
 from app.ui_components import DescriptionPanel, PanelMessage, InventoryPanel
 
+# Rooms that should end the game when entered
+END_ROOM_IDS = {"5"}  # your Street room id
+
+# one-time default
+if "game_over" not in st.session_state:
+    st.session_state.game_over = False
+
 st.markdown(
     """
     <style>
@@ -144,6 +151,15 @@ with left:
     # Fixed, scrollable text window
     DescriptionPanel(panel_id="room-desc", height_px=220, border_css="1px solid #000") \
         .render(st.session_state.panel["blocks"])
+    
+    # >>> ADD THE GAME-OVER CHECK RIGHT HERE <<<
+    if st.session_state.game_over:
+        if st.button("Play again", type="primary"):
+            G.restart()
+            st.session_state.game_over = False
+            panel_init(G.current_room_id, G.desc_short())
+            st.rerun()
+        st.stop()  # prevents Look/Compass/Actions from rendering below
 
     # ---------- Look ----------
     if st.button("Look", type="primary", key=f"look_{st.session_state.ui_tick}"):
@@ -172,10 +188,35 @@ with left:
                 st.session_state.panel["blocks"].append(PanelMessage(locked_line, "warning"))
                 st.rerun()
 
+            # --- NEW: detect if this exit is item-gated and you have that item
+            exit_obj = G.room.exits.get(ex["direction"])
+            used_item = None
+            if exit_obj and getattr(exit_obj, "locked_by_item", None):
+                if exit_obj.locked_by_item in G.inventory:
+                    used_item = exit_obj.locked_by_item  # e.g., "hatchet"
+
             # Move succeeds -> seed next room with SHORT description as panel body
             G.move(ex["direction"])
             panel_init(G.current_room_id, G.desc_short())
+
+            # --- NEW: if you used an item to get through, show a green success line
+            if used_item:
+                st.session_state.panel["blocks"].append(
+                    PanelMessage(f"You pry the door with the **{used_item}**. It opens.", "success")
+                )
+
+            # If this is a win room, show victory & end the session UI (keep your existing block if present)
+            if "END_ROOM_IDS" in globals() and G.current_room_id in END_ROOM_IDS:
+                st.session_state.panel["blocks"] = [PanelMessage(G.desc_long(), "body")]
+                st.session_state.panel["blocks"].append(
+                    PanelMessage("You step into the street and breathe free air. You escaped!", "success")
+                )
+                st.session_state.game_over = True
+                st.rerun()
+
             st.rerun()
+
+
 
     # ---------- Interactions ----------
     vis = G.visible_interactions()

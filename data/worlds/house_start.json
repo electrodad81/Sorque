@@ -14,7 +14,11 @@
           "message": "You wedge the hatchet into the swollen doorframe. With a grunt, the lock gives."
         }
       ]
-    }
+    },
+    "corn_kernels": { "id": "corn_kernels", "name": "Corn Kernels", "desc": "A handful of dry kernels." },
+    "rusty_key":    { "id": "rusty_key", "name": "Rusty Key", "desc": "Old and pitted, but serviceable." },
+    "lantern":      { "id": "lantern", "name": "Lantern", "desc": "An old lantern. It’s empty." },
+    "oil_flask":    { "id": "oil_flask", "name": "Oil Flask", "desc": "A small flask of lamp oil." }
   },
   "npcs": {
     "dog": {
@@ -79,6 +83,27 @@
           "visible_if_items": ["hatchet"],
           "text": "Why would you want to do that?",
           "sort": 20
+        },
+        {
+          "id": "take_oil",
+          "label": "Take the oil flask",
+          "visible_if_not_items": ["oil_flask"],
+          "once": true,
+          "effects": [
+            { "add_item": "oil_flask" }
+          ],
+          "text": "You pocket the oil flask."
+        },
+        {
+          "id": "fuel_lantern",
+          "label": "Fuel the lantern",
+          "visible_if_items": ["lantern", "oil_flask"],
+          "visible_if_not_flags": ["lantern_fueled"],
+          "once": true,
+          "effects": [
+            { "add_flag": "lantern_fueled" }
+          ],
+          "text": "You fill the lantern and test the wick. A steady flame blooms."
         }
       ]
     },
@@ -95,7 +120,7 @@
     "4": {
       "id": 4,
       "name": "Backyard",
-      "desc_short": "A patchy lawn bounded by an endless wall of ivy.",
+      "desc_short": "A patchy lawn bounded by an endless wall of ivy. A crow perches atop the wall.",
       "desc_long": "Weeds choke the beds. The ivy climbs higher than you can see, leaves whispering in a faint breeze. Something metal glints in the grass.",
       "on_look_add_flags": ["saw_glint"],
       "interactions": [
@@ -115,9 +140,31 @@
           "once": true,
           "effects": [{ "add_item": "hatchet" }],
           "text": "You pick up the hatchet. It feels reassuringly heavy."
+        },
+        {
+          "id": "approach_crow",
+          "label": "Approach the crow on the fence",
+          "effects": [],
+          "text": "The crow watches you, head tilted, the glint in its beak catching the light."
+        },
+        {
+          "id": "feed_crow",
+          "label": "Feed the crow",
+          "visible_if_items": ["corn_kernels"],
+          "visible_if_not_flags": ["fed_crow"],
+          "once": true,
+          "effects": [
+            { "add_flag": "fed_crow" },
+            { "add_item": "rusty_key" }
+          ],
+          "text": "The crow hops down, gobbles the kernels, then drops a rusty key at your feet before flapping off."
         }
       ],
-      "exits": { "east": { "to": "1", "label": "back to the living room" } },
+      "exits": {
+      "east": { "to": "1", "label": "back to the living room" },
+      "west": { "to": "6", "label": "to the kitchen" },
+      "south": { "to": "7", "label": "to the overgrown shed" }
+    },
       "desc_overrides": [
         {
           "visible_if_items": ["hatchet"],
@@ -132,6 +179,79 @@
       "desc_short": "You step out into the street. Free at last.",
       "desc_long": "The air feels brighter out here. The house looms behind you.",
       "exits": { "in": { "to": "3", "label": "back inside" } }
+    },
+    "6": {
+      "id": 6,
+      "name": "Kitchen",
+      "desc_short": "A cramped kitchen; a split feed sack spills yellow kernels.",
+      "desc_long": "Scuffed linoleum, a cold stove, and a burlap sack of feed split open—kernels scatter underfoot.",
+      "exits": {
+        "east": { "to": "4", "label": "back to the backyard" }
+      },
+      "interactions": [
+        {
+          "id": "take_corn",
+          "label": "Take some corn kernels",
+          "visible_if_not_items": ["corn_kernels"],
+          "once": true,
+          "effects": [
+            { "add_item": "corn_kernels" }
+          ],
+          "text": "You scoop a handful of dry kernels."
+        }
+      ]
+    },
+    "7": {
+      "id": 7,
+      "name": "Overgrown Shed",
+      "desc_short": "Mold and cobwebs. A trapdoor sits in the floor.",
+      "desc_long": "Rusty rakes and a mildewed tarp. A trapdoor with an iron hasp. A dusty lantern hangs on a nail.",
+      "exits": {
+        "north": { "to": "4", "label": "back to the backyard" },
+        "down": {
+          "to": "8",
+          "label": "down through the trapdoor",
+          "locked_by_item": "rusty_key",
+          "locked_text": "The hasp is shut tight. A rusty keyhole stares back at you."
+        }
+      },
+      "interactions": [
+        {
+          "id": "take_lantern",
+          "label": "Take the lantern",
+          "visible_if_not_items": ["lantern"],
+          "once": true,
+          "effects": [
+            { "add_item": "lantern" }
+          ],
+          "text": "You take the lantern. It’s bone-dry."
+        }
+      ]
+    },
+    "8": {
+      "id": 8,
+      "name": "Hidden Cellar",
+      "desc_short": "Cold, damp stone. Something glows faintly.",
+      "desc_long": "Shelves of dusty jars. One pulses with a faint inner light. A section of wall looks weakened.",
+      "exits": {
+        "up": { "to": "7", "label": "up to the shed" }
+      },
+      "interactions": [
+        {
+          "id": "examine_jars",
+          "label": "Examine the jars",
+          "visible_if_flags": ["lantern_fueled"],
+          "effects": [],
+          "text": "Dusty preserves, cloudy brine. One jar glows softly—warm to the touch."
+        },
+        {
+          "id": "feel_in_dark",
+          "label": "Grope around in the dark",
+          "visible_if_not_flags": ["lantern_fueled"],
+          "effects": [],
+          "text": "Pitch black. Your fingers find only cold glass and spider silk. Light would help."
+        }
+      ]
     }
   }
 } 

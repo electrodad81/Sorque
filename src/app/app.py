@@ -3,6 +3,7 @@ import sys
 from pathlib import Path
 from typing import Optional
 import streamlit as st
+st.set_page_config(page_title="Sorque", layout="wide")
 
 THIS_FILE = Path(__file__).resolve()
 SRC_DIR   = THIS_FILE.parents[1]      # .../src
@@ -15,8 +16,43 @@ from backend.oo import Game
 
 from app.ui_components import DescriptionPanel, PanelMessage, InventoryPanel
 
+APP_MAX_WIDTH = 1100  # tweak to taste (e.g., 1000–1300)
+
+st.markdown(f"""
+<style>
+  /* Cap & center the whole app content. Use both selectors and !important to win. */
+  .block-container {{
+    max-width: {APP_MAX_WIDTH}px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+  }}
+  [data-testid="block-container"] {{
+    max-width: {APP_MAX_WIDTH}px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+  }}
+</style>
+""", unsafe_allow_html=True)
+
+
 # Rooms that should end the game when entered
 END_ROOM_IDS = {"5"}  # your Street room id
+
+INSTRUCTIONS_MD = (
+    "**Welcome to Sorque**\n"
+    "- Click **Look** to reveal more detail in a room.\n"
+    "- Use the **compass** to move.\n"
+    "- **Actions** appear contextually under the room panel.\n"
+    "- Jammed doors may need items (try the **hatchet**).\n"
+    "- In the basement, **petting the dog will kill you**.\n"
+    "- The **hatchet** can be found outside.\n"
+    "- Step **outside** to escape.\n\n"
+    "Good luck."
+)
 
 # one-time default
 if "game_over" not in st.session_state:
@@ -52,6 +88,22 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
+
+st.markdown("""
+<style>
+  /* Primary (Look) — blue outline, full width, fixed height */
+  .stButton > button[kind="primary"]{
+    background: transparent !important;
+    color: #1a73e8 !important;
+    border: 2px solid #1a73e8 !important;
+    box-shadow: none !important;
+    width: 100% !important;         /* NEW */
+    height: 60px !important;        /* NEW: match secondary buttons */
+  }
+  .stButton > button[kind="primary"]:hover{ background: rgba(26,115,232,0.08) !important; }
+  .stButton > button[kind="primary"]:active{ background: rgba(26,115,232,0.16) !important; }
+</style>
+""", unsafe_allow_html=True)
 
 st.markdown(
     """
@@ -140,7 +192,7 @@ if "inv_open" not in st.session_state:
 # =========================
 # TWO-COLUMN LAYOUT
 # =========================
-left, right = st.columns([3, 1])
+left, right = st.columns([3, 1], gap="large")  # wider story area
 
 # ----- LEFT: header + fixed text window + controls -----
 with left:
@@ -149,8 +201,14 @@ with left:
         st.subheader(G.room.name)
 
     # Fixed, scrollable text window
-    DescriptionPanel(panel_id="room-desc", height_px=220, border_css="1px solid #000") \
-        .render(st.session_state.panel["blocks"])
+    DescriptionPanel(
+        panel_id="room-desc",
+        height_px=560,                 # a little taller looks nice with more width
+        border_css="1px solid #333",   # subtle dark border
+        bg_css="#111",                 # dark background
+        font_size="1rem",              # optional bump
+        margin_bottom_px=16
+    ).render(st.session_state.panel["blocks"])
     
     # >>> ADD THE GAME-OVER CHECK RIGHT HERE <<<
     if st.session_state.game_over:
@@ -161,15 +219,33 @@ with left:
             st.rerun()
         st.stop()  # prevents Look/Compass/Actions from rendering below
 
-    # ---------- Look ----------
-    if st.button("Look", type="primary", key=f"look_{st.session_state.ui_tick}"):
-        G.look()  # sets reveal flags
-        st.session_state.ui_tick += 1
-        # Replace body with current LONG description
-        st.session_state.panel["blocks"] = [PanelMessage(G.desc_long(), "body")]
-        st.rerun()
+    # ---------- Look (left) + Help (far right) ----------
+    c1, c2, c3, c4 = st.columns(4)
 
-    # ---------- Compass (movement) ----------
+    # Leftmost: Look (primary, blue outline & fixed size via CSS)
+    with c1:
+        if st.button("Look", type="primary", key=f"look_{st.session_state.ui_tick}"):
+            G.look()
+            st.session_state.ui_tick += 1
+            st.session_state.panel["blocks"] = [PanelMessage(G.desc_long(), "body")]
+            st.rerun()
+
+    # Middle columns are spacers (keep row shape consistent)
+    with c2: st.write("")
+    with c3: st.write("")
+
+    # Far right: Help (only after note is read)
+    with c4:
+        if "read_note" in G.flags:
+            if st.button("Help", key=f"help_{st.session_state.ui_tick}"):
+                st.session_state.ui_tick += 1
+                st.session_state.panel["blocks"].append(PanelMessage(INSTRUCTIONS_MD, "info"))
+                st.rerun()
+        else:
+            # Optional: keep button footprint without action (disabled placeholder)
+            st.button("Help", disabled=True, key="help_placeholder")
+
+
     cols = st.columns(4)
     for i, ex in enumerate(G.compass()):
         col = cols[i % 4]

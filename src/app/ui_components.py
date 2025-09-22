@@ -26,11 +26,12 @@ class DescriptionPanel:
     """Fixed-size panel that renders a stack of messages with colored backgrounds."""
     panel_id: str = "desc"
     height_px: int = 220
-    border_css: str = "1px solid #000"
+    border_css: str = "1px solid #333"            # darker border
     padding_px: int = 12
-    bg_css: str = "var(--background-color, transparent)"
+    bg_css: str = "#111"                          # DARK background
     font_size: Optional[str] = None
-    margin_bottom_px: int = 12
+    margin_bottom_px: int = 16
+    text_color: str = "#f5f5f5"                   # LIGHT body text
 
     def render(self, messages: list[Union[PanelMessage, str]]) -> None:
         _ensure_css_once()  # keeps layout styles, but colors come inline now
@@ -43,30 +44,38 @@ class DescriptionPanel:
             f"background:{self.bg_css};"
             f"box-sizing:border-box;"
             f"margin-bottom:{self.margin_bottom_px}px;"
+            f"color:{self.text_color};"          # body text color
         )
         if self.font_size:
             panel_style += f"font-size:{self.font_size};"
 
         # Inline color styles (bulletproof against Streamlit CSS quirks)
         style_map = {
-            "body":    "padding:0;border:0;background:transparent;",
-            "success": "background:#e6f4ea;border:1px solid #c7e8d0;",
-            "info":    "background:#e8f0fe;border:1px solid #c8d3ff;",
-            "warning": "background:#fff4e5;border:1px solid #ffe2bd;",
-            "error":   "background:#fde8e8;border:1px solid #f8c7c7;",
+            "body":    "padding:0;border:0;background:transparent;color:inherit;",
+            "success": "background:#e6f4ea;border:1px solid #c7e8d0;color:#111;",
+            "info":    "background:#e8f0fe;border:1px solid #c8d3ff;color:#111;",
+            "warning": "background:#fff4e5;border:1px solid #ffe2bd;color:#111;",
+            "error":   "background:#fde8e8;border:1px solid #f8c7c7;color:#111;",
         }
 
         blocks_html = []
         for raw in (messages or []):
             m = raw if isinstance(raw, PanelMessage) else PanelMessage(str(raw), "info")
             kind = m.kind if m.kind in style_map else "body"
-            block_style = f'margin:0 0 .6rem 0;padding:.6rem .75rem;border-radius:.4rem;{style_map[kind]}'
-            if kind == "body":  # no extra padding for body text
+            block_style = (
+                f'margin:0 0 .6rem 0;'
+                f'padding:.6rem .75rem;'
+                f'border-radius:.4rem;'
+                f'{style_map[kind]}'
+            )
+            if kind == "body":  # no extra padding for body paragraph(s)
                 block_style = "margin:0 0 .6rem 0;" + style_map[kind]
             blocks_html.append(f'<div style="{block_style}">{_md_min(m.text)}</div>')
 
-        panel_html = f'<div class="desc-panel" id="panel-{self.panel_id}" style="{panel_style}">' \
-                    + "".join(blocks_html) + "</div>"
+        panel_html = (
+            f'<div class="desc-panel" id="panel-{self.panel_id}" style="{panel_style}">'
+            + "".join(blocks_html) + "</div>"
+        )
         st.markdown(panel_html, unsafe_allow_html=True)
 
 @dataclass

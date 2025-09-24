@@ -24,6 +24,8 @@ def _md_min(s: str) -> str:
 @dataclass
 class DescriptionPanel:
     """Fixed-size panel that renders a stack of messages with colored backgrounds."""
+    fade_span: int = 12          # number of newest blocks that fade from 1.0 → fade_min_opacity
+    fade_min_opacity: float = 0.35
     panel_id: str = "desc"
     height_px: int = 220
     border_css: str = "1px solid #333"            # darker border
@@ -34,7 +36,7 @@ class DescriptionPanel:
     text_color: str = "#f5f5f5"                   # LIGHT body text
 
     def render(self, messages: list[Union[PanelMessage, str]]) -> None:
-        _ensure_css_once()  # keeps layout styles, but colors come inline now
+        _ensure_css_once()  # layout styles; colors are inline below
 
         panel_style = (
             f"height:{self.height_px}px;"
@@ -44,12 +46,12 @@ class DescriptionPanel:
             f"background:{self.bg_css};"
             f"box-sizing:border-box;"
             f"margin-bottom:{self.margin_bottom_px}px;"
-            f"color:{self.text_color};"          # body text color
+            f"color:{self.text_color};"
         )
         if self.font_size:
             panel_style += f"font-size:{self.font_size};"
 
-        # Inline color styles (bulletproof against Streamlit CSS quirks)
+        # Inline color styles (block chrome). Text color is inherited from panel unless overridden.
         style_map = {
             "body":    "padding:0;border:0;background:transparent;color:inherit;",
             "success": "background:#e6f4ea;border:1px solid #c7e8d0;color:#111;",
@@ -58,23 +60,40 @@ class DescriptionPanel:
             "error":   "background:#fde8e8;border:1px solid #f8c7c7;color:#111;",
         }
 
-        blocks_html = []
-        for raw in (messages or []):
+        # Newest-first: reverse the list so latest message renders at the top
+        data = list(messages or [])
+        data.reverse()
+
+        # Compute per-block opacity: newest = 1.0, then linearly down to fade_min_opacity over fade_span items
+        blocks_html: list[str] = []
+        span = max(1, int(self.fade_span))
+        min_op = max(0.0, min(1.0, float(self.fade_min_opacity)))
+
+        for idx, raw in enumerate(data):
             m = raw if isinstance(raw, PanelMessage) else PanelMessage(str(raw), "info")
             kind = m.kind if m.kind in style_map else "body"
+
+            # opacity factor by age
+            t = min(idx / span, 1.0)                # 0 .. 1 across the span
+            opacity = (1.0 - t) * (1.0 - min_op) + min_op  # lerp to min opacity
+
             block_style = (
-                f'margin:0 0 .6rem 0;'
-                f'padding:.6rem .75rem;'
-                f'border-radius:.4rem;'
-                f'{style_map[kind]}'
+                "margin:0 0 .6rem 0;"
+                "padding:.6rem .75rem;"
+                "border-radius:.4rem;"
+                f"{style_map[kind]}"
+                f"opacity:{opacity};"
             )
-            if kind == "body":  # no extra padding for body paragraph(s)
-                block_style = "margin:0 0 .6rem 0;" + style_map[kind]
+            if kind == "body":  # no extra padding for room prose
+                block_style = "margin:0 0 .6rem 0;" + style_map[kind] + f"opacity:{opacity};"
+
             blocks_html.append(f'<div style="{block_style}">{_md_min(m.text)}</div>')
 
+        panel_id = f"panel-{self.panel_id}"
         panel_html = (
-            f'<div class="desc-panel" id="panel-{self.panel_id}" style="{panel_style}">'
-            + "".join(blocks_html) + "</div>"
+            f'<div class="desc-panel" id="{panel_id}" style="{panel_style}">'
+            + "".join(blocks_html)
+            + "</div>"
         )
         st.markdown(panel_html, unsafe_allow_html=True)
 

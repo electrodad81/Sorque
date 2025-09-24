@@ -16,7 +16,7 @@ from backend.oo import Game
 
 from app.ui_components import DescriptionPanel, PanelMessage, InventoryPanel
 
-APP_MAX_WIDTH = 1100  # tweak to taste (e.g., 1000–1300)
+APP_MAX_WIDTH = 1000  # tweak to taste (e.g., 1000–1300)
 
 st.markdown(f"""
 <style>
@@ -139,20 +139,25 @@ st.markdown(
 )
 
 # ---------- tiny panel helpers ----------
-def panel_init(room_id: str, short_text: str):
-    """Ensure per-room panel exists; on room change, seed with short description as body."""
-    blocks = st.session_state.get("panel", {}).get("blocks")
-    if ("panel" not in st.session_state) or (st.session_state.panel.get("room_id") != room_id):
-        st.session_state.panel = {"room_id": room_id, "blocks": [PanelMessage(short_text, "body")]}
-    elif not blocks:
-        st.session_state.panel["blocks"] = [PanelMessage(short_text, "body")]
+# --- panel helpers (append-only log) ---
+def panel_init(initial_text: str):
+    """Create the log once at app start; do NOT clear on room changes."""
+    if "panel" not in st.session_state:
+        st.session_state.panel = {"blocks": [PanelMessage(initial_text, "body")]}
+
+MAX_LOG_BLOCKS = 300  # keep memory sane; tweak to taste
 
 def panel_set_body(html: str):
     st.session_state.panel["blocks"] = [PanelMessage(html, "body")]
 
-def panel_append(html: str, kind: str = "info"):
-    st.session_state.panel["blocks"].append(PanelMessage(html, kind))  # type: ignore[arg-type]
+def panel_append(text: str, kind: str = "body"):
+    st.session_state.panel["blocks"].append(PanelMessage(text, kind))  # type: ignore[arg-type]
+    # trim oldest if too long
+    if len(st.session_state.panel["blocks"]) > MAX_LOG_BLOCKS:
+        st.session_state.panel["blocks"] = st.session_state.panel["blocks"][-MAX_LOG_BLOCKS:]
 
+def panel_divider():
+    panel_append("— — —", "body")  # simple visual break in the log
 
 ROOT_DIR  = THIS_FILE.parents[2]   # project root (…/Sorque/)
 WORLD_PATH = ROOT_DIR / "data" / "worlds" / "house_start.json"
@@ -172,22 +177,21 @@ if G is None:
         st.error(f"Failed to load world: {e}")
         st.stop()
 
-# Panel seed + death handling (death first)
+# --- append-only seed + death handling ---
+panel_init(G.desc_short())  # seed the log once with the starting room short
+
 death_msg = st.session_state.pop("death_msg", None)
 if death_msg:
-    st.session_state.panel = {
-        "room_id": G.current_room_id,
-        "blocks": [
-            PanelMessage(death_msg, "error"),
-            PanelMessage(G.desc_short(), "body"),
-        ],
-    }
-else:
-    panel_init(G.current_room_id, G.desc_short())
+    # append the death line first, then remind the player where they are
+    panel_append(death_msg, "error")
+    if G.room.name:
+        panel_append(f"**{G.room.name}**")
+    panel_append(G.desc_short())
 
 # Inventory toggle state
 if "inv_open" not in st.session_state:
     st.session_state.inv_open = True  # start open
+
 
 # =========================
 # TWO-COLUMN LAYOUT
@@ -215,7 +219,8 @@ with left:
         if st.button("Play again", type="primary"):
             G.restart()
             st.session_state.game_over = False
-            panel_init(G.current_room_id, G.desc_short())
+            st.session_state.panel = {"blocks": []}   # fresh log
+            panel_init(G.desc_short())                # seed with start-room short
             st.rerun()
         st.stop()  # prevents Look/Compass/Actions from rendering below
 
@@ -225,9 +230,9 @@ with left:
     # Leftmost: Look (primary, blue outline & fixed size via CSS)
     with c1:
         if st.button("Look", type="primary", key=f"look_{st.session_state.ui_tick}"):
-            G.look()
+            G.look()  # reveals flags for the room
             st.session_state.ui_tick += 1
-            st.session_state.panel["blocks"] = [PanelMessage(G.desc_long(), "body")]
+            panel_append(G.desc_long(), "body")   # <-- append, don't replace
             st.rerun()
 
     # Middle columns are spacers (keep row shape consistent)
@@ -239,7 +244,7 @@ with left:
         if "read_note" in G.flags:
             if st.button("Help", key=f"help_{st.session_state.ui_tick}"):
                 st.session_state.ui_tick += 1
-                st.session_state.panel["blocks"].append(PanelMessage(INSTRUCTIONS_MD, "info"))
+                panel_append(INSTRUCTIONS_MD, "info")
                 st.rerun()
         else:
             # Optional: keep button footprint without action (disabled placeholder)
@@ -271,9 +276,13 @@ with left:
                 if exit_obj.locked_by_item in G.inventory:
                     used_item = exit_obj.locked_by_item  # e.g., "hatchet"
 
-            # Move succeeds -> seed next room with SHORT description as panel body
+            # Move succeeds -> append arrival entry
             G.move(ex["direction"])
-            panel_init(G.current_room_id, G.desc_short())
+            # optional separator line:
+            # panel_append("— — —")
+            if G.room.name:
+                panel_append(f"**{G.room.name}**", "body")
+            panel_append(G.desc_short(), "body")
 
             # --- NEW: if you used an item to get through, show a green success line
             if used_item:
@@ -283,10 +292,8 @@ with left:
 
             # If this is a win room, show victory & end the session UI (keep your existing block if present)
             if "END_ROOM_IDS" in globals() and G.current_room_id in END_ROOM_IDS:
-                st.session_state.panel["blocks"] = [PanelMessage(G.desc_long(), "body")]
-                st.session_state.panel["blocks"].append(
-                    PanelMessage("You step into the street and breathe free air. You escaped!", "success")
-                )
+                panel_append(G.desc_long(), "body")
+                panel_append("You step into the street and breathe free air. You escaped!", "success")
                 st.session_state.game_over = True
                 st.rerun()
 
@@ -310,16 +317,15 @@ with left:
                 G.restart()
                 st.rerun()
 
-            # Body: up-to-date LONG description (reflect overrides)
-            st.session_state.panel["blocks"] = [PanelMessage(G.desc_long(), "body")]
-
+            # Append room long desc (reflect overrides)
+            panel_append(G.desc_long(), "body")
             # Append interaction text
             if msg:
-                st.session_state.panel["blocks"].append(PanelMessage(msg, "info"))
+                panel_append(msg, "info")
 
             # Append pickups
             for name in sorted(after - before):
-                st.session_state.panel["blocks"].append(PanelMessage(f"**{name.title()} added to inventory.**", "success"))
+                panel_append(f"**{name.title()}** added to inventory.", "success")
 
             st.rerun()
 

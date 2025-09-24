@@ -224,117 +224,138 @@ with left:
             st.rerun()
         st.stop()  # prevents Look/Compass/Actions from rendering below
 
-    # ---------- Look (left) + Help (far right) ----------
-    c1, c2, c3, c4 = st.columns(4)
-
-    # Leftmost: Look (primary, blue outline & fixed size via CSS)
-    with c1:
-        if st.button("Look", type="primary", key=f"look_{st.session_state.ui_tick}"):
-            G.look()  # reveals flags for the room
-            st.session_state.ui_tick += 1
-            panel_append(G.desc_long(), "body")   # <-- append, don't replace
-            st.rerun()
-
-    # Middle columns are spacers (keep row shape consistent)
-    with c2: st.write("")
-    with c3: st.write("")
-
-    # Far right: Help (only after note is read)
-    with c4:
-        if "read_note" in G.flags:
-            if st.button("Help", key=f"help_{st.session_state.ui_tick}"):
-                st.session_state.ui_tick += 1
-                panel_append(INSTRUCTIONS_MD, "info")
-                st.rerun()
-        else:
-            # Optional: keep button footprint without action (disabled placeholder)
-            st.button("Help", disabled=True, key="help_placeholder")
-
-
-    cols = st.columns(4)
-    for i, ex in enumerate(G.compass()):
-        col = cols[i % 4]
-        to_valid = bool(ex["to"]) and str(ex["to"]) in G.rooms
-        disabled = not to_valid
-
-        if col.button(ex["label"], disabled=disabled, key=f"mv_{ex['direction']}_{st.session_state.ui_tick}"):
-            st.session_state.ui_tick += 1
-
-            if not to_valid:
-                st.session_state.panel["blocks"].append(PanelMessage("It doesn't seem to open.", "warning"))
-                st.rerun()
-
-            if ex["locked"]:
-                locked_line = ex["locked_text"] or "It's stuck. You'll need leverage."
-                st.session_state.panel["blocks"].append(PanelMessage(locked_line, "warning"))
-                st.rerun()
-
-            # --- NEW: detect if this exit is item-gated and you have that item
-            exit_obj = G.room.exits.get(ex["direction"])
-            used_item = None
-            if exit_obj and getattr(exit_obj, "locked_by_item", None):
-                if exit_obj.locked_by_item in G.inventory:
-                    used_item = exit_obj.locked_by_item  # e.g., "hatchet"
-
-            # Move succeeds -> append arrival entry
-            G.move(ex["direction"])
-            # optional separator line:
-            # panel_append("— — —")
-            if G.room.name:
-                panel_append(f"**{G.room.name}**", "body")
-            panel_append(G.desc_short(), "body")
-
-            # --- NEW: if you used an item to get through, show a green success line
-            if used_item:
-                st.session_state.panel["blocks"].append(
-                    PanelMessage(f"You pry the door with the **{used_item}**. It opens.", "success")
-                )
-
-            # If this is a win room, show victory & end the session UI (keep your existing block if present)
-            if "END_ROOM_IDS" in globals() and G.current_room_id in END_ROOM_IDS:
-                panel_append(G.desc_long(), "body")
-                panel_append("You step into the street and breathe free air. You escaped!", "success")
-                st.session_state.game_over = True
-                st.rerun()
-
-            st.rerun()
-
-
-
-    # ---------- Interactions ----------
+    # ---------- Look (left) | Actions (middle) | Help (right) ----------
     vis = G.visible_interactions()
-    if vis:
-        st.markdown("### Actions")
-    for it in vis:
-        if st.button(it.label, key=f"act_{it.id}_{st.session_state.ui_tick}"):
-            before = set(G.inventory)
-            msg, dead = G.do(it.id)
-            after = set(G.inventory)
-            st.session_state.ui_tick += 1
+    A = list(vis)  # stable order
 
-            if dead:
-                st.session_state.death_msg = msg or "You died."
-                G.restart()
-                st.rerun()
+    NUM_COLS = 6  # [Look] [A] [A] [A] [A] [Help]
+    MID_SLOTS = NUM_COLS - 2
 
-            # Append room long desc (reflect overrides)
-            panel_append(G.desc_long(), "body")
-            # Append interaction text
-            if msg:
-                panel_append(msg, "info")
+    def render_actions_row(actions_slice, include_look=False, include_help=False):
+        cols = st.columns(NUM_COLS)
+        # Left-most: Look (optional, only on first row)
+        if include_look:
+            with cols[0]:
+                if st.button("Look", type="primary", key=f"look_{st.session_state.ui_tick}"):
+                    G.look()
+                    st.session_state.ui_tick += 1
+                    panel_append(G.desc_long(), "body")
+                    st.rerun()
+        else:
+            with cols[0]:
+                st.write("")  # keep grid shape
 
-            # Append pickups
-            for name in sorted(after - before):
-                panel_append(f"**{name.title()}** added to inventory.", "success")
+        # Middle: action buttons
+        for col, it in zip(cols[1:-1], actions_slice):
+            with col:
+                if st.button(it.label, key=f"act_{it.id}_{st.session_state.ui_tick}"):
+                    before = set(G.inventory)
+                    msg, dead = G.do(it.id)
+                    after = set(G.inventory)
+                    st.session_state.ui_tick += 1
 
-            st.rerun()
+                    if dead:
+                        st.session_state.death_msg = msg or "You died."
+                        G.restart()
+                        st.rerun()
+
+                    # Append authored text and pickup notes
+                    if msg:
+                        panel_append(msg, "info")
+                    for name in sorted(after - before):
+                        panel_append(f"**{name.title()} added to inventory.**", "success")
+
+                    # Refresh desc (overrides) after interactions
+                    panel_append(G.desc_long(), "body")
+                    st.rerun()
+
+        # Fill any unused middle slots to keep width consistent
+        empty_slots = MID_SLOTS - len(actions_slice)
+        for _ in range(max(0, empty_slots)):
+            with cols[-2]:
+                st.write("")
+
+        # Right-most: Help (optional, only on first row)
+        if include_help:
+            with cols[-1]:
+                if "read_note" in G.flags:
+                    if st.button("Help", key=f"help_{st.session_state.ui_tick}"):
+                        st.session_state.ui_tick += 1
+                        panel_append(INSTRUCTIONS_MD, "info")
+                        st.rerun()
+                else:
+                    st.button("Help", disabled=True, key="help_placeholder")
+        else:
+            with cols[-1]:
+                st.write("")
+
+    # First row: Look + middle actions + Help
+    render_actions_row(A[:MID_SLOTS], include_look=True, include_help=True)
+
+    # Additional rows for overflow actions (no Look/Help on these)
+    for i in range(MID_SLOTS, len(A), MID_SLOTS):
+        render_actions_row(A[i:i+MID_SLOTS], include_look=False, include_help=False)
+
 
 # ----- RIGHT: collapsible Inventory -----
 with right:
+    # Inventory toggle + panel (keep yours)
     st.checkbox("Inventory", key="inv_open")
     if st.session_state.inv_open:
-        InventoryPanel(panel_id="inv", height_px=220, border_css="1px solid #000") \
+        InventoryPanel(panel_id="inv", height_px=260, border_css="1px solid #333") \
             .render(sorted(G.inventory))
+
+    # ------- Compass under Inventory (2-column grid) -------
+    moves = G.compass()
+    if moves:
+        for i in range(0, len(moves), 2):
+            cols = st.columns(2)
+            for col, ex in zip(cols, moves[i:i+2]):
+                to_valid = bool(ex["to"]) and str(ex["to"]) in G.rooms
+                disabled = not to_valid  # invalid destinations disabled
+
+                if col.button(ex["label"], disabled=disabled, key=f"mv_{ex['direction']}_{st.session_state.ui_tick}"):
+                    st.session_state.ui_tick += 1
+
+                    if not to_valid:
+                        panel_append("It doesn't seem to open.", "warning")
+                        st.rerun()
+
+                    # Locked → show warning in the log, do not move
+                    if ex["locked"]:
+                        locked_line = ex["locked_text"] or "It's stuck. You'll need leverage."
+                        panel_append(locked_line, "warning")
+                        st.rerun()
+
+                    # Detect if this exit was item-gated and the player has that item (e.g., hatchet)
+                    exit_obj = G.room.exits.get(ex["direction"])
+                    used_item = None
+                    if exit_obj and getattr(exit_obj, "locked_by_item", None):
+                        if exit_obj.locked_by_item in G.inventory:
+                            used_item = exit_obj.locked_by_item
+
+                    # Move succeeds → append arrival entry (MUD-style, no clearing)
+                    G.move(ex["direction"])
+                    if G.room.name:
+                        panel_append(f"**{G.room.name}**", "body")
+                    panel_append(G.desc_short(), "body")
+
+                    # If an item was used to get through, celebrate it
+                    if used_item:
+                        panel_append(f"You pry the door with the **{used_item}**. It opens.", "success")
+
+                    # Victory room?
+                    if "END_ROOM_IDS" in globals() and G.current_room_id in END_ROOM_IDS:
+                        panel_append(G.desc_long(), "body")
+                        panel_append("You step into the street and breathe free air. You escaped!", "success")
+                        st.session_state.game_over = True
+                        st.rerun()
+
+                    st.rerun()
+
+        
+
+# ---------- end of two-column layout ----------
 
 # (Optional) debug
 with st.expander("Debug state"):

@@ -25,13 +25,13 @@ def _md_min(s: str) -> str:
 class DescriptionPanel:
     """Fixed-size panel that renders a stack of messages with colored backgrounds."""
     fade_span: int = 12          # number of newest blocks that fade from 1.0 → fade_min_opacity
-    fade_min_opacity: float = 0.35
+    fade_min_opacity: float = 0.05
     panel_id: str = "desc"
     height_px: int = 220
     border_css: str = "1px solid #333"            # darker border
-    padding_px: int = 12
+    padding_px: int = 24
     bg_css: str = "#111"                          # DARK background
-    font_size: Optional[str] = None
+    font_size: Optional[str] = 50
     margin_bottom_px: int = 16
     text_color: str = "#f5f5f5"                   # LIGHT body text
 

@@ -179,21 +179,17 @@ class DescOverride:
 # -----------------------------
 
 class Game:
-    """Runtime container for world + player state.
-
-    This engine is deterministic and derived entirely from authored data.
-    """
-
-    def __init__(self, rooms: Dict[str, Room], start_room_id: str):
+    def __init__(self, rooms: Dict[str, Room], start_room_id: str, global_interactions: Optional[List[Interaction]] = None):
         if start_room_id not in rooms:
             raise ValueError(f"start_room '{start_room_id}' not in rooms")
-        self.rooms: Dict[str, Room] = rooms
-        self.start_room_id: str = start_room_id
-        self.current_room_id: str = start_room_id
+        self.rooms = rooms
+        self.start_room_id = start_room_id
+        self.current_room_id = start_room_id
         self.flags: Set[str] = set()
         self.inventory: Set[str] = set()
-        self.dead: bool = False
-        self.last_message: str = ""
+        self.dead = False
+        self.last_message = ""
+        self.global_interactions: List[Interaction] = list(global_interactions or [])
 
     # ---------- derived helpers ----------
     @property
@@ -223,6 +219,7 @@ class Game:
 
     def visible_interactions(self) -> List[Interaction]:
         vis = [it for it in self.room.interactions if it.is_visible(self)]
+        vis += [it for it in self.global_interactions if it.is_visible(self)]
         vis.sort(key=lambda it: (it.sort, it.label))
         return vis
 
@@ -246,15 +243,18 @@ class Game:
         self.last_message = self.desc_short()
         return self.last_message
 
-    def do(self, interaction_id: str) -> Tuple[str, bool]:
+    def do(self, interaction_id: str):
         it = next((i for i in self.room.interactions if i.id == interaction_id), None)
+        if not it:
+            it = next((i for i in self.global_interactions if i.id == interaction_id), None)
+
         if not it or not it.is_visible(self):
             self.last_message = "Nothing happens."
             return self.last_message, False
+
         msg, dead = it.perform(self)
         self.dead = dead
         if not msg:
-            # Default to the room short desc so UI always has feedback
             msg = self.desc_short()
         self.last_message = msg
         return msg, dead

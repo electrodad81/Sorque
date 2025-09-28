@@ -209,13 +209,27 @@ st.markdown("""
 # End of game
 # =========================
 
-# --- Death messaging ---
+# Default lines used when JSON gives only a cause
 DEATH_TEXT = {
-    "dog": "The dog ate your face. You died.",
-    "fall": "You tumble into the dark and stop suddenly. You died.",
-    "trap": "Metal snaps shut around your leg. You died.",
+    "dog":     "The dog ate your face. You died.",
+    "fall":    "You tumble into the dark and stop suddenly. You died.",
+    "trap":    "Metal snaps shut around your leg. You died.",
     "generic": "You collapse. Darkness takes you.",
 }
+
+# --- Mark death from anywhere in the game/handlers ---
+def set_death(cause: str = "generic", msg: Optional[str] = None):
+    """Mark player as dead; read by the post-action/post-move guards."""
+    G.dead = True
+    G.death_cause = cause
+    if msg:
+        G.death_message = msg
+
+def die(cause: str = "generic", msg: Optional[str] = None):
+    """Finalize death with message and freeze UI (same flow as victory)."""
+    final = (msg or DEATH_TEXT.get(cause) or DEATH_TEXT["generic"]).strip()
+    st.session_state.last_death = {"cause": cause, "message": final}
+    end_game(final, level="error")
 
 def end_game(message: str, level: str = "success"):
     """Freeze the game and show a restart affordance, reusing the same path for win/lose."""
@@ -224,14 +238,31 @@ def end_game(message: str, level: str = "success"):
     st.session_state.show_restart = True
     st.rerun()
 
-def die(cause: str = "generic", msg: Optional[str] = None):
-    final = (msg or DEATH_TEXT.get(cause) or DEATH_TEXT["generic"]).strip()
-    st.session_state.last_death = {"cause": cause, "message": final}
-    end_game(final, level="error")
-
 def restart_game():
     st.session_state.clear()
     st.rerun()
+
+def apply_effect(eff: dict) -> None:
+    """Interpret JSON effect objects. Shows only kill_player here; keep your others."""
+    if "kill_player" in eff:
+        payload = eff["kill_player"]
+        cause, msg = "generic", None
+
+        if isinstance(payload, bool):
+            if not payload:
+                return  # explicit false => no-op
+        elif isinstance(payload, str):
+            cause = (payload or "generic").strip()
+        elif isinstance(payload, dict):
+            cause = (payload.get("cause") or "generic").strip()
+            msg = (payload.get("message") or payload.get("msg") or "").strip() or None
+
+        set_death(cause, msg)
+        return
+
+    # TODO: keep your other effect handlers here (add_item, remove_item, add_flag, etc.)
+
+
 
 # ---------- tiny panel helpers ----------
 # --- panel helpers (append-only log) ---
@@ -347,14 +378,20 @@ with left:
                 with col:
                     if st.button(it.label, key=f"act_{it.id}_{st.session_state.ui_tick}"):
                         before = set(G.inventory)
-                        msg, dead = G.do(it.id)
+                        msg, dead = G.do(it.id)  # msg may already be a custom death line
                         after = set(G.inventory)
                         st.session_state.ui_tick += 1
 
-                        if getattr(G, "dead", False) or getattr(G, "hp", 1) <= 0:
-                            cause = getattr(G, "death_cause", "generic")   # optional: let engine set this
-                            die(cause)
+                        # If the action resulted in death, use engine-provided message if available
+                        if dead or getattr(G, "dead", False) or getattr(G, "hp", 1) <= 0:
+                            cause = getattr(G, "death_cause", "generic")
+                            # Prefer an explicit engine-set message; otherwise use the action's msg
+                            death_msg = getattr(G, "death_message", None) or msg
+                            die(cause, death_msg)
+                            # die() calls end_game() which appends the line + freezes UI + reruns
+                            # so we never reach the normal append code below.
 
+                        # Normal (non-death) path:
                         # Refresh desc (overrides) *first* so authored text ends up on top
                         panel_append(G.desc_long(), "body")
 
@@ -459,11 +496,16 @@ with right:
                     if used_item:
                         panel_append(f"You pry the door with the **{used_item}**. It opens.", "success")
 
+                    # ---- Death guard goes HERE ----
+                    if getattr(G, "dead", False):
+                        cause = getattr(G, "death_cause", "generic")
+                        msg   = getattr(G, "death_message", None)
+                        die(cause, msg)   # ends the run with the right message (e.g., dog)
+
                     # Victory room?
                     if "END_ROOM_IDS" in globals() and G.current_room_id in END_ROOM_IDS:
                         panel_append(G.desc_long(), "body")
                         end_game("You step into the street and breathe free air. You escaped!", level="success")
-                        # no extra flags or rerun here; end_game() handles it
 
                     st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)

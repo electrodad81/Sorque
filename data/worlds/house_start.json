@@ -18,8 +18,30 @@
     "corn_kernels": { "id": "corn_kernels", "name": "Corn Kernels", "desc": "A handful of dry kernels." },
     "rusty_key":    { "id": "rusty_key", "name": "Rusty Key", "desc": "Old and pitted, but serviceable." },
     "lantern":      { "id": "lantern", "name": "Lantern", "desc": "An old lantern. It’s empty." },
-    "oil_flask":    { "id": "oil_flask", "name": "Oil Flask", "desc": "A small flask of lamp oil." }
+    "oil_flask":    { "id": "oil_flask", "name": "Oil Flask", "desc": "A small flask of lamp oil." },
+    "fueled_lantern": {
+      "id": "fueled_lantern",
+      "name": "Fueled Lantern",
+      "desc": "Filled with oil. The wick takes a steady flame."
+    }
   },
+  "global_interactions": [
+    {
+      "id": "fuel_lantern_global",
+      "label": "Fuel the lantern with oil",
+      "visible_if_items": ["lantern", "oil_flask"],
+      "visible_if_not_items": ["fueled_lantern"],
+      "once": true,
+      "sort": -5,
+      "effects": [
+        { "remove_item": "lantern" },
+        { "remove_item": "oil_flask" },
+        { "add_item": "fueled_lantern" },
+        { "add_flag": "lantern_fueled" }
+      ],
+      "text": "You fill the lantern and test the wick. A steady flame blooms."
+    }
+  ],
   "npcs": {
     "dog": {
       "name": "dog",
@@ -53,7 +75,8 @@
         }
       ],
       "exits": {
-        "south": { "to": "2", "label": "to the basement" },
+        "down": { "to": "2", "label": "to the basement" },
+        "south": { "to": "6", "label": "to the kitchen" },
         "north": {
           "to": "3",
           "label": "the front door (jammed)",
@@ -68,7 +91,7 @@
       "name": "Basement",
       "desc_short": "A cool, dim basement that smells of damp concrete; from the shadows, a faint panting.",
       "desc_long": "Narrow stairs creak behind you. Pipes tick in the ceiling. A dog watches you from the shadows, tail motionless.",
-      "on_look_add_flags": ["saw_dog"],         
+      "on_look_add_flags": ["saw_dog","saw_oil_flask"],         
       "exits": { "north": { "to": "1", "label": "up to the living room" } },
       "interactions": [
         {
@@ -88,22 +111,12 @@
           "id": "take_oil",
           "label": "Take the oil flask",
           "visible_if_not_items": ["oil_flask"],
+          "visible_if_flags": ["saw_oil_flask"],
           "once": true,
           "effects": [
             { "add_item": "oil_flask" }
           ],
           "text": "You pocket the oil flask."
-        },
-        {
-          "id": "fuel_lantern",
-          "label": "Fuel the lantern",
-          "visible_if_items": ["lantern", "oil_flask"],
-          "visible_if_not_flags": ["lantern_fueled"],
-          "once": true,
-          "effects": [
-            { "add_flag": "lantern_fueled" }
-          ],
-          "text": "You fill the lantern and test the wick. A steady flame blooms."
         }
       ]
     },
@@ -144,6 +157,7 @@
         {
           "id": "approach_crow",
           "label": "Approach the crow on the fence",
+          "visible_if_not_flags": ["fed_crow"],
           "effects": [],
           "text": "The crow watches you, head tilted, the glint in its beak catching the light."
         },
@@ -201,7 +215,7 @@
       "desc_short": "A cramped kitchen; a split feed sack spills yellow kernels.",
       "desc_long": "Scuffed linoleum, a cold stove, and a burlap sack of feed split open—kernels scatter underfoot.",
       "exits": {
-        "east": { "to": "4", "label": "back to the backyard" }
+        "north": { "to": "1", "label": "to the living room" }
       },
       "interactions": [
         {
@@ -221,6 +235,19 @@
       "name": "Overgrown Shed",
       "desc_short": "Mold and cobwebs. A trapdoor sits in the floor.",
       "desc_long": "Rusty rakes and a mildewed tarp. A trapdoor with an iron hasp. A dusty lantern hangs on a nail.",
+      "desc_overrides": [
+        {
+          "visible_if_items": ["lantern"],
+          "short": "Mold and cobwebs. A trapdoor sits in the floor.",
+          "long": "Rusty rakes and a mildewed tarp. A trapdoor with an iron hasp. A bare nail shows where the lantern once hung."
+        },
+        {
+          "priority": 5,
+          "visible_if_items": ["fueled_lantern"],
+          "short": "In the lantern’s glow, a trapdoor sits in the floor.",
+          "long": "Lantern light fills the shed. The trapdoor’s hasp and keyhole are clear now."
+        }
+      ],
       "exits": {
         "north": { "to": "4", "label": "back to the backyard" },
         "down": {

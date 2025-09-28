@@ -10,6 +10,7 @@ Kind = Literal["body", "success", "info", "warning", "error"]
 class PanelMessage:
     text: str
     kind: Kind = "body"
+    id: str | None = None   # ← add this field
 
 def _md_min(s: str) -> str:
     """Very small Markdown -> HTML: bold/italic + line breaks. Escapes HTML first."""
@@ -144,4 +145,32 @@ def _ensure_css_once():
         """,
         unsafe_allow_html=True,
     )
+    st.markdown("""
+    <style>
+    /* Subtle, one-shot flash when a new line arrives */
+    .desc-panel .msg.flash {
+    position: relative;
+    animation: sp_pulseHighlight 1200ms ease-out 1;
+    background: rgba(46, 204, 113, 0.14);          /* gentle green wash */
+    box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.35);
+    border-left: 4px solid rgba(46, 204, 113, 0.9);
+    }
+
+    @keyframes sp_pulseHighlight {
+    0%   { background: rgba(46,204,113,0.00); box-shadow: 0 0 0 0 rgba(46,204,113,0.35); }
+    30%  { background: rgba(46,204,113,0.22); box-shadow: 0 0 0 10px rgba(46,204,113,0.00); }
+    100% { background: rgba(46,204,113,0.00); box-shadow: 0 0 0 0 rgba(46,204,113,0.00); }
+    }
+
+    /* Respect reduced motion */
+    @media (prefers-reduced-motion: reduce) {
+    .desc-panel .msg.flash {
+        animation: none;
+        background: rgba(46, 204, 113, 0.16);
+        transition: background 1500ms ease-out;
+    }
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
 

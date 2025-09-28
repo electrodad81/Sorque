@@ -91,57 +91,152 @@ st.markdown(
 
 st.markdown("""
 <style>
-  /* Primary (Look) — blue outline, full width, fixed height */
-  .stButton > button[kind="primary"]{
-    background: transparent !important;
-    color: #1a73e8 !important;
-    border: 2px solid #1a73e8 !important;
-    box-shadow: none !important;
-    width: 100% !important;         /* NEW */
-    height: 60px !important;        /* NEW: match secondary buttons */
+/* =========================
+   Buttons (primary & secondary)
+   ========================= */
+
+/* Primary (Look) — blue outline, full-width, grows with text */
+.stButton > button[kind="primary"]{
+  width: 100% !important;
+  min-height: 60px !important;
+  height: auto !important;
+
+  background: transparent !important;
+  color: #1a73e8 !important;
+  border: 2px solid #1a73e8 !important;
+  box-shadow: none !important;
+
+  /* wrapping: no mid-word splits */
+  white-space: normal !important;
+  word-break: normal !important;
+  overflow-wrap: break-word !important;
+  word-wrap: break-word !important; /* Safari alias */
+  line-height: 1.2 !important;
+  padding: 10px 14px !important;
+}
+.stButton > button[kind="primary"]:hover{ background: rgba(26,115,232,0.08) !important; }
+.stButton > button[kind="primary"]:active{ background: rgba(26,115,232,0.16) !important; }
+
+/* Secondary — full-width, grows with text, clean wraps */
+.stButton > button[kind="secondary"]{
+  width: 100% !important;
+  min-height: 60px !important;
+  height: auto !important;
+
+  white-space: normal !important;
+  word-break: normal !important;        /* ← fixes mid-word splits */
+  overflow-wrap: break-word !important; /* only break huge tokens */
+  word-wrap: break-word !important;     /* Safari alias */
+
+  text-align: center !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: 1.2 !important;
+  padding: 10px 14px !important;
+  border-radius: 8px !important;
+}
+
+/* Compass: vertical stack spacing */
+.compass-vertical .stButton { margin-bottom: 8px; }
+
+/* =========================
+   Right-panel header + divider
+   ========================= */
+
+/* Subheader above actions: theme-safe (inherits text color) */
+.panel-subhed{
+  margin: 0 0 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  color: inherit !important;     /* <- was hard-coded white */
+}
+
+/* Thin divider line that works on light & dark themes */
+hr.panel-rule{
+  border: none;
+  height: 1px;
+  margin: 8px 0 10px;
+  background: linear-gradient(to right,
+              rgba(0,0,0,.06), rgba(0,0,0,.16), rgba(0,0,0,.06));
+}
+@media (prefers-color-scheme: dark){
+  hr.panel-rule{
+    background: linear-gradient(to right,
+                rgba(255,255,255,.06), rgba(255,255,255,.22), rgba(255,255,255,.06));
   }
-  .stButton > button[kind="primary"]:hover{ background: rgba(26,115,232,0.08) !important; }
-  .stButton > button[kind="primary"]:active{ background: rgba(26,115,232,0.16) !important; }
+}
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown(
-    """
-    <style>
-      /* Make ALL secondary buttons fill their column and grow with text */
-      .stButton > button[kind="secondary"]{
-        width: 100% !important;             
-        min-height: 60px !important;        /* was: height: 60px */
-        height: auto !important;            /* let it grow when needed */
-        white-space: normal !important;     /* allow wrapping */
-        overflow-wrap: anywhere;            /* break long words */
-        word-break: break-word;             /* cross-browser safety */
-        text-align: center !important;
-        display: flex !important;
-        align-items: center !important;     /* keep vertical centering */
-        justify-content: center !important; /* horizontal centering */
-        line-height: 1.2 !important;        /* nicer multi-line spacing */
-        padding: 10px 14px !important;      /* breathing room for wraps */
-        border-radius: 8px !important;
-      }
 
-      /* Keep the Look button as a blue outline (primary) */
-      .stButton > button[kind="primary"]{
-        background: transparent !important;
-        color: #1a73e8 !important;
-        border: 2px solid #1a73e8 !important;
-        box-shadow: none !important;
-      }
-      .stButton > button[kind="primary"]:hover{
-        background: rgba(26,115,232,0.08) !important;
-      }
-      .stButton > button[kind="primary"]:active{
-        background: rgba(26,115,232,0.16) !important;
-      }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
+st.markdown("""
+<style>
+/* Story panel line base */
+.story-panel .line {
+  padding: 8px 10px;
+  border-radius: 6px;
+  margin: 6px 0;
+}
+
+/* Subtle one-shot flash for the newest line */
+.story-panel .line.flash {
+  position: relative;
+  animation: pulseHighlight 1200ms ease-out 1;
+  background: rgba(46, 204, 113, 0.14);          /* gentle green wash */
+  box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.35);
+  border-left: 4px solid rgba(46, 204, 113, 0.9); /* green accent */
+}
+
+/* Optional: keep a tiny left rule after the flash fades */
+.story-panel .line.flash::after {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 4px;
+  background: transparent;
+}
+
+@keyframes pulseHighlight {
+  0%   { background: rgba(46,204,113,0.00); box-shadow: 0 0 0 0 rgba(46,204,113,0.35); }
+  30%  { background: rgba(46,204,113,0.22); box-shadow: 0 0 0 10px rgba(46,204,113,0.00); }
+  100% { background: rgba(46,204,113,0.00); box-shadow: 0 0 0 0 rgba(46,204,113,0.00); }
+}
+
+/* Respect users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .story-panel .line.flash {
+    animation: none;
+    background: rgba(46, 204, 113, 0.16);
+    transition: background 1500ms ease-out;
+  }
+}
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown("""
+<style>
+/* Small subheader above the action bar (right panel) */
+.panel-subhed{
+  margin: 4px 0 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  opacity: 0.85;
+  /* theme-friendly color */
+  color: rgba(255,255,255,0.92);
+  /* subtle divider feel */
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  padding-bottom: 4px;
+}
+
+/* Keep your vertical compass spacing tidy */
+.compass-vertical .stButton { margin-bottom: 8px; }
+</style>
+""", unsafe_allow_html=True)
 
 
 # ---------- tiny panel helpers ----------
@@ -265,15 +360,19 @@ with left:
                         G.restart()
                         st.rerun()
 
-                    # Append authored text and pickup notes
-                    if msg:
-                        panel_append(msg, "info")
+                    # Refresh desc (overrides) *first* so authored text ends up on top
+                    panel_append(G.desc_long(), "body")
+
+                    # Inventory pickups (if any)
                     for name in sorted(after - before):
                         panel_append(f"**{name.title()} added to inventory.**", "success")
 
-                    # Refresh desc (overrides) after interactions
-                    panel_append(G.desc_long(), "body")
+                    # Authored text *last* -> shows at the top in newest-first panel
+                    if msg:
+                        panel_append(msg, "info")
+
                     st.rerun()
+
 
         # Fill any unused middle slots to keep width consistent
         empty_slots = MID_SLOTS - len(actions_slice)
@@ -311,10 +410,6 @@ with right:
         InventoryPanel(panel_id="inv", height_px=260, border_css="1px solid #333") \
             .render(sorted(G.inventory))
 
-    # Demure spacer between Inventory and Compass   
-    st.markdown("<div style='height:10px;'></div>", unsafe_allow_html=True)
-
-    # ------- Compass under Inventory (2-column grid) -------
     # ------- Compass under Inventory: vertical stack (one button per row) -------
     moves = G.compass()
 
@@ -324,10 +419,14 @@ with right:
         if tl.startswith("to the "): t = t[7:]
         elif tl.startswith("to "):    t = t[3:]
         return t[:1].upper() + t[1:] if t else t
-
+    
+    # Header (only if there are actions)
     if moves:
-        st.markdown('<div class="compass-vertical">', unsafe_allow_html=True)
+        st.markdown('<hr class="panel-rule">', unsafe_allow_html=True)
+        st.markdown('<div class="panel-subhed">Places you can go:</div>', unsafe_allow_html=True)
 
+        # Compass: vertical stack of full-width buttons
+        st.markdown('<div class="compass-vertical">', unsafe_allow_html=True)
         for ex in moves:  # ex is a dict
             to_valid = bool(ex["to"]) and str(ex["to"]) in G.rooms
             disabled = not to_valid

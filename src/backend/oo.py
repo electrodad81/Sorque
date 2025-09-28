@@ -133,15 +133,30 @@ class Room:
     on_look_add_flags: Set[str] = field(default_factory=set)
     desc_overrides: List[DescOverride] = field(default_factory=list)  # <— NEW
 
-    def render_desc(self, game: "Game", long: bool = False) -> str:
-        # First matching override wins
+    def render_desc(self, game: "Game", long: bool) -> str:
+        candidates = []
         for ov in self.desc_overrides:
-            if ov.is_visible(game):
-                txt = (ov.long if long else ov.short)
-                if txt:  # allow partial overrides
-                    return txt
+            # must-pass gating
+            if ov.visible_if_flags and not ov.visible_if_flags.issubset(game.flags): continue
+            if ov.visible_if_not_flags & game.flags: continue
+            if ov.visible_if_items and not ov.visible_if_items.issubset(game.inventory): continue
+            if ov.visible_if_not_items & game.inventory: continue
+
+            # matched → compute specificity score
+            score = 0
+            score += 10 * bool(ov.visible_if_items) + len(ov.visible_if_items)
+            score += 10 * bool(ov.visible_if_flags) + len(ov.visible_if_flags)
+            score += 5  * bool(ov.visible_if_not_items)
+            score += 5  * bool(ov.visible_if_not_flags)
+            candidates.append((ov.priority, score, ov))
+
+        if candidates:
+            candidates.sort(key=lambda t: (t[0], t[1]), reverse=True)  # priority first, then specificity
+            best = candidates[0][2]
+            return (best.long or self.desc_long) if long else (best.short or self.desc_short)
+
         return self.desc_long if long else self.desc_short
-    
+
 @dataclass
 class DescOverride:
     short: Optional[str] = None
@@ -150,6 +165,7 @@ class DescOverride:
     visible_if_not_flags: Set[str] = field(default_factory=set)
     visible_if_items: Set[str] = field(default_factory=set)
     visible_if_not_items: Set[str] = field(default_factory=set)
+    priority: int = 0  # NEW
 
     def is_visible(self, game: "Game") -> bool:
         if any(f not in game.flags for f in self.visible_if_flags): return False

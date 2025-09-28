@@ -167,8 +167,23 @@
     },
       "desc_overrides": [
         {
+          "priority": 20,
+          "visible_if_items": ["hatchet", "rusty_key"],
+          "short": "A patchy lawn. The crow is gone; trampled grass marks where the hatchet was.",
+          "long": "Weeds choke the beds. The ivy climbs higher than you can see. The crow has vanished. The grass is flattened where you found the hatchet; the rusty key is warm in your pocket."
+        },
+        {
+          "priority": 10,
+          "visible_if_items": ["rusty_key"],
+          "visible_if_not_items": ["hatchet"],
+          "short": "A patchy lawn. The crow watches from the fence; something still glints in the grass.",
+          "long": "Weeds choke the beds. The ivy climbs higher than you can see. The crow eyes you, quieter now—the rusty key is yours. Something still glints in the grass."
+        },
+        {
+          "priority": 10,
           "visible_if_items": ["hatchet"],
-          "short": "A patchy lawn bounded by an endless wall of ivy.",
+          "visible_if_not_items": ["rusty_key"],
+          "short": "A patchy lawn. The grass lies flattened where you took the hatchet.",
           "long": "Weeds choke the beds. The ivy climbs higher than you can see. The grass lies flattened where you found the hatchet."
         }
       ]

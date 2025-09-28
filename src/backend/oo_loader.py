@@ -10,19 +10,18 @@ def _to_set(v: Any) -> Set[str]:
         return set(str(x) for x in v)
     return {str(v)}
 
-def _to_overrides(raw_list: Any) -> List[DescOverride]:
-    out: List[DescOverride] = []
+def _to_overrides(raw_list):
+    out = []
     for ov in (raw_list or []):
-        out.append(
-            DescOverride(
-                short=ov.get("short"),
-                long=ov.get("long"),
-                visible_if_flags=_to_set(ov.get("visible_if_flags")),
-                visible_if_not_flags=_to_set(ov.get("visible_if_not_flags")),
-                visible_if_items=_to_set(ov.get("visible_if_items")),
-                visible_if_not_items=_to_set(ov.get("visible_if_not_items")),
-            )
-        )
+        out.append(DescOverride(
+            short=ov.get("short"),
+            long=ov.get("long"),
+            visible_if_flags=_to_set(ov.get("visible_if_flags")),
+            visible_if_not_flags=_to_set(ov.get("visible_if_not_flags")),
+            visible_if_items=_to_set(ov.get("visible_if_items")),
+            visible_if_not_items=_to_set(ov.get("visible_if_not_items")),
+            priority=int(ov.get("priority", 0)),  # NEW
+        ))
     return out
 
 def load_rooms(world_json: Dict[str, Any]) -> Dict[str, Room]:

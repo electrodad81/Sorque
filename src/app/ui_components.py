@@ -24,7 +24,7 @@ def _md_min(s: str) -> str:
 @dataclass
 class DescriptionPanel:
     """Fixed-size panel that renders a stack of messages with colored backgrounds."""
-    fade_span: int = 12          # number of newest blocks that fade from 1.0 → fade_min_opacity
+    fade_span: int = 16          # number of newest blocks that fade from 1.0 → fade_min_opacity
     fade_min_opacity: float = 0.05
     panel_id: str = "desc"
     height_px: int = 220

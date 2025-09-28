@@ -108,19 +108,24 @@ st.markdown("""
 st.markdown(
     """
     <style>
-      /* Make ALL secondary buttons equal size & fill their column */
+      /* Make ALL secondary buttons fill their column and grow with text */
       .stButton > button[kind="secondary"]{
-        width: 100% !important;             /* span the st.columns cell */
-        height: 60px !important;            /* fixed height (tweak if you like) */
-        white-space: normal !important;     /* allow wrapping for long labels */
+        width: 100% !important;             
+        min-height: 60px !important;        /* was: height: 60px */
+        height: auto !important;            /* let it grow when needed */
+        white-space: normal !important;     /* allow wrapping */
+        overflow-wrap: anywhere;            /* break long words */
+        word-break: break-word;             /* cross-browser safety */
         text-align: center !important;
         display: flex !important;
-        align-items: center !important;     /* vertical center */
-        justify-content: center !important; /* horizontal center */
-        line-height: 1.15 !important;
+        align-items: center !important;     /* keep vertical centering */
+        justify-content: center !important; /* horizontal centering */
+        line-height: 1.2 !important;        /* nicer multi-line spacing */
+        padding: 10px 14px !important;      /* breathing room for wraps */
         border-radius: 8px !important;
       }
-      /* Keep the Look button as a blue outline (primary) — already added earlier */
+
+      /* Keep the Look button as a blue outline (primary) */
       .stButton > button[kind="primary"]{
         background: transparent !important;
         color: #1a73e8 !important;
@@ -137,6 +142,7 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
+
 
 # ---------- tiny panel helpers ----------
 # --- panel helpers (append-only log) ---
@@ -305,53 +311,75 @@ with right:
         InventoryPanel(panel_id="inv", height_px=260, border_css="1px solid #333") \
             .render(sorted(G.inventory))
 
+    # Demure spacer between Inventory and Compass   
+    st.markdown("<div style='height:10px;'></div>", unsafe_allow_html=True)
+
     # ------- Compass under Inventory (2-column grid) -------
+    # ------- Compass under Inventory: vertical stack (one button per row) -------
     moves = G.compass()
+
+    def prettify_exit(label: str) -> str:
+        t = label.strip()
+        tl = t.lower()
+        if tl.startswith("to the "): t = t[7:]
+        elif tl.startswith("to "):    t = t[3:]
+        return t[:1].upper() + t[1:] if t else t
+
     if moves:
-        for i in range(0, len(moves), 2):
-            cols = st.columns(2)
-            for col, ex in zip(cols, moves[i:i+2]):
-                to_valid = bool(ex["to"]) and str(ex["to"]) in G.rooms
-                disabled = not to_valid  # invalid destinations disabled
+        st.markdown('<div class="compass-vertical">', unsafe_allow_html=True)
 
-                if col.button(ex["label"], disabled=disabled, key=f"mv_{ex['direction']}_{st.session_state.ui_tick}"):
-                    st.session_state.ui_tick += 1
+        for ex in moves:  # ex is a dict
+            to_valid = bool(ex["to"]) and str(ex["to"]) in G.rooms
+            disabled = not to_valid
+            label = prettify_exit(ex["label"])
 
-                    if not to_valid:
-                        panel_append("It doesn't seem to open.", "warning")
-                        st.rerun()
+            clicked = st.button(
+                label,
+                key=f"mv_{ex['direction']}_{st.session_state.ui_tick}",
+                type="secondary",
+                disabled=disabled,
+                use_container_width=True,
+            )
+            if clicked:
+                st.session_state.ui_tick += 1
 
-                    # Locked → show warning in the log, do not move
-                    if ex["locked"]:
-                        locked_line = ex["locked_text"] or "It's stuck. You'll need leverage."
-                        panel_append(locked_line, "warning")
-                        st.rerun()
-
-                    # Detect if this exit was item-gated and the player has that item (e.g., hatchet)
-                    exit_obj = G.room.exits.get(ex["direction"])
-                    used_item = None
-                    if exit_obj and getattr(exit_obj, "locked_by_item", None):
-                        if exit_obj.locked_by_item in G.inventory:
-                            used_item = exit_obj.locked_by_item
-
-                    # Move succeeds → append arrival entry (MUD-style, no clearing)
-                    G.move(ex["direction"])
-                    if G.room.name:
-                        panel_append(f"**{G.room.name}**", "body")
-                    panel_append(G.desc_short(), "body")
-
-                    # If an item was used to get through, celebrate it
-                    if used_item:
-                        panel_append(f"You pry the door with the **{used_item}**. It opens.", "success")
-
-                    # Victory room?
-                    if "END_ROOM_IDS" in globals() and G.current_room_id in END_ROOM_IDS:
-                        panel_append(G.desc_long(), "body")
-                        panel_append("You step into the street and breathe free air. You escaped!", "success")
-                        st.session_state.game_over = True
-                        st.rerun()
-
+                if not to_valid:
+                    panel_append("It doesn't seem to open.", "warning")
                     st.rerun()
+
+                # Locked → show warning in the log, do not move
+                if ex["locked"]:
+                    locked_line = ex["locked_text"] or "It's stuck. You'll need leverage."
+                    panel_append(locked_line, "warning")
+                    st.rerun()
+
+                # Detect if this exit was item-gated and the player has that item
+                exit_obj = G.room.exits.get(ex["direction"])
+                used_item = None
+                if exit_obj and getattr(exit_obj, "locked_by_item", None):
+                    if exit_obj.locked_by_item in G.inventory:
+                        used_item = exit_obj.locked_by_item
+
+                # Move succeeds → append arrival entry (append-only panel)
+                G.move(ex["direction"])
+                if G.room.name:
+                    panel_append(f"**{G.room.name}**", "body")
+                panel_append(G.desc_short(), "body")
+
+                if used_item:
+                    panel_append(f"You pry the door with the **{used_item}**. It opens.", "success")
+
+                # Victory room?
+                if "END_ROOM_IDS" in globals() and G.current_room_id in END_ROOM_IDS:
+                    panel_append(G.desc_long(), "body")
+                    panel_append("You step into the street and breathe free air. You escaped!", "success")
+                    st.session_state.game_over = True
+                    st.rerun()
+
+                st.rerun()
+
+        st.markdown('</div>', unsafe_allow_html=True)
+
 
         
 

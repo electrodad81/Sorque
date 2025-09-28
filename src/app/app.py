@@ -147,7 +147,7 @@ st.markdown("""
 /* Subheader above actions: theme-safe (inherits text color) */
 .panel-subhed{
   margin: 0 0 6px;
-  font-size: 0.9rem;
+  font-size: 1.2rem;
   font-weight: 600;
   letter-spacing: .02em;
   text-transform: uppercase;
@@ -158,10 +158,26 @@ st.markdown("""
 hr.panel-rule{
   border: none;
   height: 1px;
-  margin: 8px 0 10px;
+  margin: 8px 0 0px;
   background: linear-gradient(to right,
               rgba(0,0,0,.06), rgba(0,0,0,.16), rgba(0,0,0,.06));
 }
+            
+/* Room header chip above the story panel */
+.room-header-chip{
+  background: #e5e7eb !important;   /* neutral gray */
+  color: #111 !important;            /* black text */
+  padding: 8px 12px;
+  border-radius: 1px;
+  font-weight: 700;
+  font-size: 1.6rem;
+  letter-spacing: .01em;
+  line-height: 1.25;
+  margin: 0 0 8px 0;                 /* space below the chip */
+  display: block;                    /* full column width */
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.06); /* subtle edge */
+}
+            
 @media (prefers-color-scheme: dark){
   hr.panel-rule{
     background: linear-gradient(to right,
@@ -172,72 +188,22 @@ hr.panel-rule{
 """, unsafe_allow_html=True)
 
 
+# CSS for room label panel
 st.markdown("""
 <style>
-/* Story panel line base */
-.story-panel .line {
-  padding: 8px 10px;
-  border-radius: 6px;
-  margin: 6px 0;
-}
-
-/* Subtle one-shot flash for the newest line */
-.story-panel .line.flash {
-  position: relative;
-  animation: pulseHighlight 1200ms ease-out 1;
-  background: rgba(46, 204, 113, 0.14);          /* gentle green wash */
-  box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.35);
-  border-left: 4px solid rgba(46, 204, 113, 0.9); /* green accent */
-}
-
-/* Optional: keep a tiny left rule after the flash fades */
-.story-panel .line.flash::after {
-  content: '';
-  position: absolute;
-  left: 0; top: 0; bottom: 0;
-  width: 4px;
-  background: transparent;
-}
-
-@keyframes pulseHighlight {
-  0%   { background: rgba(46,204,113,0.00); box-shadow: 0 0 0 0 rgba(46,204,113,0.35); }
-  30%  { background: rgba(46,204,113,0.22); box-shadow: 0 0 0 10px rgba(46,204,113,0.00); }
-  100% { background: rgba(46,204,113,0.00); box-shadow: 0 0 0 0 rgba(46,204,113,0.00); }
-}
-
-/* Respect users who prefer reduced motion */
-@media (prefers-reduced-motion: reduce) {
-  .story-panel .line.flash {
-    animation: none;
-    background: rgba(46, 204, 113, 0.16);
-    transition: background 1500ms ease-out;
-  }
+/* Room header chip inside the description/story panel */
+.desc-panel .msg-room{
+  background: #e5e7eb !important;   /* neutral gray */
+  color: #111111 !important;         /* black text */
+  display: inline-block;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-weight: 700;
+  letter-spacing: .01em;
+  margin: 6px 0 2px;                 /* a little air above the paragraph */
 }
 </style>
 """, unsafe_allow_html=True)
-
-st.markdown("""
-<style>
-/* Small subheader above the action bar (right panel) */
-.panel-subhed{
-  margin: 4px 0 8px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  letter-spacing: .02em;
-  text-transform: uppercase;
-  opacity: 0.85;
-  /* theme-friendly color */
-  color: rgba(255,255,255,0.92);
-  /* subtle divider feel */
-  border-bottom: 1px solid rgba(255,255,255,0.08);
-  padding-bottom: 4px;
-}
-
-/* Keep your vertical compass spacing tidy */
-.compass-vertical .stButton { margin-bottom: 8px; }
-</style>
-""", unsafe_allow_html=True)
-
 
 # ---------- tiny panel helpers ----------
 # --- panel helpers (append-only log) ---
@@ -286,7 +252,7 @@ if death_msg:
     # append the death line first, then remind the player where they are
     panel_append(death_msg, "error")
     if G.room.name:
-        panel_append(f"**{G.room.name}**")
+        panel_append(G.room.name, "room")
     panel_append(G.desc_short())
 
 # Inventory toggle state
@@ -303,7 +269,10 @@ left, right = st.columns([3, 1], gap="large")  # wider story area
 with left:
     # Header ABOVE the window
     if G.room.name:
-        st.subheader(G.room.name)
+        st.markdown(
+            f'<div class="room-header-chip">{G.room.name}</div>',
+            unsafe_allow_html=True
+        )
 
     # Fixed, scrollable text window
     DescriptionPanel(
@@ -311,7 +280,7 @@ with left:
         height_px=560,                 # a little taller looks nice with more width
         border_css="1px solid #333",   # subtle dark border
         bg_css="#111",                 # dark background
-        font_size="1rem",              # optional bump
+        font_size="1.4rem",              # optional bump
         margin_bottom_px=16
     ).render(st.session_state.panel["blocks"])
     
@@ -324,6 +293,9 @@ with left:
             panel_init(G.desc_short())                # seed with start-room short
             st.rerun()
         st.stop()  # prevents Look/Compass/Actions from rendering below
+
+    st.markdown('<hr class="panel-rule">', unsafe_allow_html=True)
+    st.markdown('<div class="panel-subhed">Actions you can take:</div>', unsafe_allow_html=True)
 
     # ---------- Look (left) | Actions (middle) | Help (right) ----------
     vis = G.visible_interactions()
@@ -404,13 +376,7 @@ with left:
 
 # ----- RIGHT: collapsible Inventory -----
 with right:
-    # Inventory toggle + panel (keep yours)
-    st.checkbox("Inventory", key="inv_open")
-    if st.session_state.inv_open:
-        InventoryPanel(panel_id="inv", height_px=260, border_css="1px solid #333") \
-            .render(sorted(G.inventory))
-
-    # ------- Compass under Inventory: vertical stack (one button per row) -------
+    # ------- Compass above Inventory: vertical stack (one button per row) -------
     moves = G.compass()
 
     def prettify_exit(label: str) -> str:
@@ -422,8 +388,8 @@ with right:
     
     # Header (only if there are actions)
     if moves:
-        st.markdown('<hr class="panel-rule">', unsafe_allow_html=True)
         st.markdown('<div class="panel-subhed">Places you can go:</div>', unsafe_allow_html=True)
+        st.markdown('<hr class="panel-rule">', unsafe_allow_html=True)
 
         # Compass: vertical stack of full-width buttons
         st.markdown('<div class="compass-vertical">', unsafe_allow_html=True)
@@ -462,7 +428,7 @@ with right:
                 # Move succeeds → append arrival entry (append-only panel)
                 G.move(ex["direction"])
                 if G.room.name:
-                    panel_append(f"**{G.room.name}**", "body")
+                    panel_append(G.room.name, "room")
                 panel_append(G.desc_short(), "body")
 
                 if used_item:
@@ -477,17 +443,23 @@ with right:
 
                 st.rerun()
 
-        st.markdown('</div>', unsafe_allow_html=True)
+        #st.markdown('</div>', unsafe_allow_html=True)
 
+    st.markdown('<hr class="panel-rule">', unsafe_allow_html=True)
 
+    # Inventory toggle + panel (keep yours)
+    st.checkbox("Inventory", key="inv_open")
+    if st.session_state.inv_open:
+        InventoryPanel(panel_id="inv", height_px=260, border_css="1px solid #333") \
+            .render(sorted(G.inventory))
         
 
 # ---------- end of two-column layout ----------
 
 # (Optional) debug
-with st.expander("Debug state"):
-    st.write({
-        "room": G.current_room_id,
-        "inventory": sorted(G.inventory),
-        "flags": sorted(G.flags),
-    })
+#with st.expander("Debug state"):
+#    st.write({
+#        "room": G.current_room_id,
+#        "inventory": sorted(G.inventory),
+#        "flags": sorted(G.flags),
+#    })

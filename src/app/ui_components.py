@@ -10,7 +10,7 @@ Kind = Literal["body", "success", "info", "warning", "error"]
 class PanelMessage:
     text: str
     kind: Kind = "body"
-    id: str | None = None   # ← add this field
+    id: Optional[str] = None
 
 def _md_min(s: str) -> str:
     """Very small Markdown -> HTML: bold/italic + line breaks. Escapes HTML first."""
@@ -32,7 +32,7 @@ class DescriptionPanel:
     border_css: str = "1px solid #333"            # darker border
     padding_px: int = 24
     bg_css: str = "#111"                          # DARK background
-    font_size: Optional[str] = 50
+    font_size: Optional[int] = 50
     margin_bottom_px: int = 16
     text_color: str = "#f5f5f5"                   # LIGHT body text
 
@@ -53,12 +53,20 @@ class DescriptionPanel:
             panel_style += f"font-size:{self.font_size};"
 
         # Inline color styles (block chrome). Text color is inherited from panel unless overridden.
+        #style_map = {
+        #    "body":    "padding:0;border:0;background:transparent;color:inherit;",
+        #    "success": "background:#e6f4ea;border:1px solid #c7e8d0;color:#111;",
+        #    "info":    "background:#e8f0fe;border:1px solid #c8d3ff;color:#111;",
+        #    "warning": "background:#fff4e5;border:1px solid #ffe2bd;color:#111;",
+        #    "error":   "background:#fde8e8;border:1px solid #f8c7c7;color:#111;",
+        #}
+
         style_map = {
             "body":    "padding:0;border:0;background:transparent;color:inherit;",
-            "success": "background:#e6f4ea;border:1px solid #c7e8d0;color:#111;",
-            "info":    "background:#e8f0fe;border:1px solid #c8d3ff;color:#111;",
-            "warning": "background:#fff4e5;border:1px solid #ffe2bd;color:#111;",
-            "error":   "background:#fde8e8;border:1px solid #f8c7c7;color:#111;",
+            "success": "background:#111;border:0px solid #15FF00;color:#15FF00;",
+            "info":    "background:#111;border:0px solid #00FFEA;color:#00FFEA;",
+            "warning": "background:#111;border:0px solid #FF0015;color:#FF0015;",
+            "error":   "background:#111;border:0px solid #EE4B2B;color:#EE4B2B;",
         }
 
         # Newest-first: reverse the list so latest message renders at the top
@@ -145,32 +153,4 @@ def _ensure_css_once():
         """,
         unsafe_allow_html=True,
     )
-    st.markdown("""
-    <style>
-    /* Subtle, one-shot flash when a new line arrives */
-    .desc-panel .msg.flash {
-    position: relative;
-    animation: sp_pulseHighlight 1200ms ease-out 1;
-    background: rgba(46, 204, 113, 0.14);          /* gentle green wash */
-    box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.35);
-    border-left: 4px solid rgba(46, 204, 113, 0.9);
-    }
-
-    @keyframes sp_pulseHighlight {
-    0%   { background: rgba(46,204,113,0.00); box-shadow: 0 0 0 0 rgba(46,204,113,0.35); }
-    30%  { background: rgba(46,204,113,0.22); box-shadow: 0 0 0 10px rgba(46,204,113,0.00); }
-    100% { background: rgba(46,204,113,0.00); box-shadow: 0 0 0 0 rgba(46,204,113,0.00); }
-    }
-
-    /* Respect reduced motion */
-    @media (prefers-reduced-motion: reduce) {
-    .desc-panel .msg.flash {
-        animation: none;
-        background: rgba(46, 204, 113, 0.16);
-        transition: background 1500ms ease-out;
-    }
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
 

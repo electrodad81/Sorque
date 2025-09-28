@@ -176,7 +176,6 @@
       ],
       "exits": {
       "east": { "to": "1", "label": "back to the living room" },
-      "west": { "to": "6", "label": "to the kitchen" },
       "south": { "to": "7", "label": "to the overgrown shed" }
     },
       "desc_overrides": [

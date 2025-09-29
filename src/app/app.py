@@ -40,7 +40,7 @@ st.markdown(f"""
 
 
 # Rooms that should end the game when entered
-END_ROOM_IDS = {"5"}  # your Street room id
+END_ROOM_IDS = {"3"}  # your Street room id
 
 INSTRUCTIONS_MD = (
     "**Welcome to Sorque**\n"
@@ -286,7 +286,7 @@ def panel_divider():
     panel_append("— — —", "body")  # simple visual break in the log
 
 ROOT_DIR  = THIS_FILE.parents[2]   # project root (…/Sorque/)
-WORLD_PATH = ROOT_DIR / "data" / "worlds" / "house_start.json"
+WORLD_PATH = ROOT_DIR / "data" / "worlds" / "escape_house_01.json"
 
 # ---------- session/bootstrap ----------
 if "ui_tick" not in st.session_state:

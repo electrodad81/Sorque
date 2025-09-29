@@ -177,7 +177,7 @@
       "exits": {
       "east": { "to": "1", "label": "back to the living room" },
       "south": { "to": "7", "label": "to the overgrown shed" }
-    },
+      },
       "desc_overrides": [
         {
           "priority": 20,

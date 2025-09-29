@@ -127,7 +127,9 @@
           "label": "Read the poster on the wall",
           "visible_if_not_flags": ["poster_taken"],
           "once": false,
-          "effects": [{ "add_flag": "read_rules" }],
+          "effects": [
+            { "add_flag": "read_rules" }
+          ],
           "text": "HOUSE RULES:\n• Use LOOK to spot details and reveal actions.\n• Some actions appear only after you LOOK.\n• Items can be combined (e.g., oil + lantern).\n• Hazards exist; choose carefully.\n• Your goal is to escape by unlocking the front door."
         },
         {
@@ -138,7 +140,8 @@
           "once": true,
           "effects": [
             { "add_item": "poster_rules" },
-            { "add_flag": "poster_taken" }
+            { "add_flag": "poster_taken" },
+            { "add_flag": "read_note" }    
           ],
           "text": "You ease the tacks out and roll the poster carefully."
         }
@@ -149,9 +152,7 @@
       "name": "Basement",
       "desc_short": "A cool, dim basement. From the shadows, faint panting.",
       "desc_long": "Concrete walls bead with moisture. Shelves sag under paint cans and jars. Something breathes softly from the dark corner.",
-      "on_look_add_flags": [
-        "saw_oil_flask"
-      ],
+      "on_look_add_flags":  ["saw_oil_flask", "saw_dog"],
       "exits": {
         "up": {
           "to": "1",
@@ -177,15 +178,22 @@
           "text": "You feel around behind the jars and pull out a small flask of lamp oil."
         },
         {
-          "id": "pet_dog",
+          "id": "reach_panting",
           "label": "Reach toward the panting",
+          "visible_if_not_flags": ["saw_dog"],
           "once": true,
           "effects": [
-            {
-              "kill_player": {
-                "text": "A flash of teeth. Pain blossoms and the room tilts. Darkness takes you."
-              }
-            }
+            { "kill_player": { "text": "The Dog at your face. You Died" } }
+          ],
+          "text": ""
+        },
+        {
+          "id": "pet_dog",
+          "label": "Pet Dog",
+          "visible_if_flags": ["saw_dog"],
+          "once": true,
+          "effects": [
+            { "kill_player": { "text": "The Dog at your face. You Died" } }
           ],
           "text": ""
         }
@@ -259,11 +267,9 @@
         {
           "id": "approach_crow",
           "label": "Approach the crow on the fence",
-          "visible_if_not_flags": [
-            "crow_fed"
-          ],
-          "once": true,
-          "text": "The crow eyes you but keeps its distance, feathers shivering."
+          "visible_if_not_flags": ["crow_fed"],
+          "once": false,
+          "text": "The crow eyes you, feathers shivering. It seems more interested in food than you."
         },
         {
           "id": "scatter_kernels",
@@ -306,8 +312,9 @@
     "5": {
       "id": "5",
       "name": "Kitchen",
-      "desc_short": "A narrow kitchen with peeling linoleum and a warped cupboard.",
-      "desc_long": "The sink is full of gray water. A single cupboard door hangs crooked on its hinge.",
+      "desc_short": "A narrow kitchen with peeling linoleum.",
+      "on_look_add_flags": ["saw_cupboard"],
+      "desc_long": "The sink is full of gray water. A narrow galley of peeling linoleum. A crooked cupboard door hangs slightly ajar.",
       "exits": {
         "north": {
           "to": "1",
@@ -318,30 +325,26 @@
         {
           "id": "open_cupboard",
           "label": "Open the crooked cupboard",
+          "visible_if_flags": ["saw_cupboard"],
           "once": true,
-          "effects": [
-            {
-              "add_flag": "cupboard_opened"
-            }
-          ],
+          "effects": [{ "add_flag": "cupboard_opened" }],
           "text": "Behind the warped door, an old sack of dried corn kernels sits on the shelf."
         },
         {
           "id": "take_corn",
           "label": "Take the corn kernels",
-          "visible_if_flags": [
-            "cupboard_opened"
-          ],
-          "visible_if_not_items": [
-            "corn_kernels"
-          ],
+          "visible_if_flags": ["cupboard_opened"],
+          "visible_if_not_items": ["corn_kernels"],
           "once": true,
-          "effects": [
-            {
-              "add_item": "corn_kernels"
-            }
-          ],
+          "effects": [{ "add_item": "corn_kernels" }],
           "text": "You take a handful of dry kernels."
+        }
+      ],
+      "desc_overrides": [
+        {
+          "visible_if_flags": ["cupboard_opened"],
+          "short": "A narrow kitchen with peeling linoleum and an open cupboard revealing a sack of corn kernels.",
+          "long": "The sink is full of gray water. A narrow galley of peeling linoleum. The crooked cupboard door hangs open, revealing a sack of dried corn kernels on the shelf."
         }
       ]
     },
@@ -349,7 +352,8 @@
       "id": "7",
       "name": "Overgrown Shed",
       "desc_short": "Rusty rakes, a mildewed tarp, and a trapdoor with an iron hasp.",
-      "desc_long": "Cobwebs hang like curtains. A dusty lantern dangles from a nail. A square of floorboards is cut out and bound with an iron hasp.",
+      "on_look_add_flags": ["saw_lantern"],
+      "desc_long": "Cobwebs hang like curtains. A square of floorboards is cut out and bound with an iron hasp.",
       "exits": {
         "south": { "to": "4", "label": "to the backyard" }
       },
@@ -357,6 +361,7 @@
       {
         "id": "take_lantern",
         "label": "Take the lantern",
+        "visible_if_flags": ["saw_lantern"],
         "visible_if_not_items": ["lantern", "fueled_lantern"],
         "once": true,
         "effects": [{ "add_item": "lantern" }],
@@ -402,18 +407,36 @@
     ],
     "desc_overrides": [
       {
+        "priority": 30,
+        "visible_if_flags": ["trapdoor_pried"],
+        "visible_if_items": ["fueled_lantern"],
+        "short": "Lantern light spills over the open trapdoor.",
+        "long": "In the lantern’s glow, the opening is clear and the ladder rungs below gleam faintly with dust."
+      },
+      {
+        "priority": 25,
         "visible_if_flags": ["trapdoor_pried"],
         "visible_if_not_items": ["fueled_lantern"],
         "short": "An open trapdoor yawns in the floor. Below is only darkness.",
         "long": "With the hasp pried away, the trapdoor lifts easily. Cool air breathes from the opening, but without light it’s just splinters and black."
       },
+
       {
-        "visible_if_flags": ["trapdoor_pried"],
-        "visible_if_items": ["fueled_lantern"],
-        "short": "Lantern light spills over the open trapdoor.",
-        "long": "In the lantern’s glow, the opening is clear and the ladder rungs below gleam faintly with dust."
+        "priority": 15,
+        "visible_if_flags": ["saw_lantern"],
+        "visible_if_not_items": ["lantern", "fueled_lantern"],
+        "short": "Rusty rakes, a mildewed tarp, and—now that you look—a lantern hangs on a nail.",
+        "long": "Cobwebs hang like curtains. A dusty lantern dangles from a nail. A square of floorboards is cut out and bound with an iron hasp."
+      },
+
+      {
+        "priority": 10,
+        "visible_if_items": ["lantern"],
+        "short": "Rusty rakes and a mildewed tarp. Empty tacks mark where a lantern hung. The trapdoor waits.",
+        "long": "Cobwebs hang like curtains. A bare nail shows where the lantern once hung. The trapdoor’s iron hasp looks old."
       }
     ]
+
     },
     "8": {
       "id": "8",

@@ -110,10 +110,31 @@ class Interaction:
                 target = eff["set_room"]
                 if target in game.rooms:
                     game.current_room_id = target
-            if eff.get("kill_player"):
+            # --- unified death handling ---
+            if "kill_player" in eff:
+                payload = eff["kill_player"]
+
+                # base values from sibling fields
+                cause = eff.get("cause") or "generic"
+                msg = eff.get("message") or eff.get("msg")
+
+                # Normalize payload forms
+                if isinstance(payload, bool):
+                    if not payload:
+                        continue  # explicit false → ignore
+                elif isinstance(payload, str):
+                    # treat value as a cause shorthand
+                    cause = payload or cause
+                elif isinstance(payload, dict):
+                    cause = payload.get("cause") or cause
+                    msg = msg or payload.get("message") or payload.get("msg") or payload.get("text")
+
+                # Mark game dead and record metadata
                 dead = True
-                msg = eff.get("message")
+                game.dead = True
+                game.death_cause = cause
                 if msg:
+                    game.death_message = msg
                     out_lines.append(msg)
 
         if self.once:
@@ -189,6 +210,8 @@ class Game:
         self.inventory: Set[str] = set()
         self.dead = False
         self.last_message = ""
+        self.death_cause: str = "generic"
+        self.death_message: str = ""
         self.global_interactions: List[Interaction] = list(global_interactions or [])
 
     # ---------- derived helpers ----------
@@ -267,6 +290,8 @@ class Game:
         self.inventory.clear()
         self.dead = False
         self.last_message = self.room.desc_short
+        self.death_cause = "generic"
+        self.death_message = ""
 
     # ---------- (de)serialization ----------
     def to_dict(self) -> Dict[str, Any]:

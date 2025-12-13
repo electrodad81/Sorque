@@ -40,7 +40,7 @@ st.markdown(f"""
 
 
 # Rooms that should end the game when entered
-END_ROOM_IDS = {"3"}  # your Street room id
+END_ROOM_IDS = set()  # your Street room id
 
 INSTRUCTIONS_MD = (
     "**Welcome to Sorque**\n"
@@ -211,10 +211,12 @@ st.markdown("""
 
 # Default lines used when JSON gives only a cause
 DEATH_TEXT = {
-    "dog":     "The dog ate your face. You died.",
-    "fall":    "You tumble into the dark and stop suddenly. You died.",
-    "trap":    "Metal snaps shut around your leg. You died.",
-    "generic": "You collapse. Darkness takes you.",
+    "dog":      "The dog erupts from the dark, all heat and teeth. You don’t get back up.",
+    "fall":     "Your foot finds nothing. You fall, and fall, and don’t stop in time.",
+    "trap":     "Metal snaps shut around you with terrible finality. You don’t make it out.",
+    "thorns":   "You force into the hedge. Thorns drink deep; you never find your way through.",
+    "poison":   "Your veins burn, breath goes heavy, and the world narrows to a pinprick.",
+    "generic":  "You collapse. Darkness takes you.",
 }
 
 # --- Mark death from anywhere in the game/handlers ---
@@ -503,9 +505,9 @@ with right:
                         die(cause, msg)   # ends the run with the right message (e.g., dog)
 
                     # Victory room?
-                    if "END_ROOM_IDS" in globals() and G.current_room_id in END_ROOM_IDS:
-                        panel_append(G.desc_long(), "body")
-                        end_game("You step into the street and breathe free air. You escaped!", level="success")
+                    #if "END_ROOM_IDS" in globals() and G.current_room_id in END_ROOM_IDS:
+                    #    panel_append(G.desc_long(), "body")
+                    #    end_game("You step into the street and breathe free air. You escaped!", level="success")
 
                     st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)

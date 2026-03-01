@@ -35,3 +35,6 @@ data/cache/
 uiworkshop/
 .streamlit/secrets.toml
 assets/other/ZORK I_ The Great Underground Empire.pdf
+
+# Node.js
+node_modules/

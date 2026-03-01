@@ -1,0 +1,71 @@
+.action-bar {
+  margin-top: 0;
+}
+
+.action-bar .panel-subhed {
+  margin: 0 0 6px;
+  font-size: 1.2rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: inherit;
+}
+
+.action-bar .panel-rule {
+  border: none;
+  height: 1px;
+  margin: 8px 0 12px;
+  background: linear-gradient(to right,
+    rgba(255,255,255,0.06), rgba(255,255,255,0.22), rgba(255,255,255,0.06));
+}
+
+.action-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+}
+
+.action-btn {
+  width: 100%;
+  min-height: 60px;
+  height: auto;
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: break-word;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.2;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  font-size: 1rem;
+  transition: background 0.15s;
+}
+
+.action-btn:hover {
+  background: rgba(255,255,255,0.08);
+}
+
+.action-btn--look {
+  color: var(--accent-blue);
+  border: 2px solid var(--accent-blue);
+  background: transparent;
+}
+
+.action-btn--look:hover {
+  background: rgba(26,115,232,0.08);
+}
+
+.action-btn--help {
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+
+.action-btn--help:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
